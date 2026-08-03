@@ -9,6 +9,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -17,10 +19,10 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
     color: '#1a1a1a',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   bellBtn: {
     width: 40,
@@ -29,13 +31,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Pet Card
   petCard: {
-    borderRadius: 22,
+    borderRadius: 24,
     backgroundColor: '#fff',
     borderWidth: 1.5,
     borderColor: '#f0e6e0',
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 22,
     position: 'relative',
   },
   vitalityBadge: {
@@ -43,7 +47,7 @@ export const styles = StyleSheet.create({
     top: 14,
     left: 14,
     zIndex: 2,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: 8,
   },
@@ -53,19 +57,21 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   petImageWrap: {
-    height: 230,
+    height: 240,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFF0EB',
   },
   petImage: {
-    width: 180,
-    height: 180,
+    width: 190,
+    height: 190,
   },
+
+  // Health / Happiness bars
   barsRow: {
     flexDirection: 'row',
     gap: 14,
-    marginBottom: 22,
+    marginBottom: 24,
   },
   barBlock: {
     flex: 1,
@@ -98,6 +104,8 @@ export const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 5,
   },
+
+  // Section headers
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -115,6 +123,8 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#999',
   },
+
+  // Focus Analysis card
   focusCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -156,6 +166,8 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#999',
   },
+
+  // Power Ups
   powerList: {
     gap: 10,
     marginBottom: 24,
@@ -195,6 +207,8 @@ export const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
+
+  // Badges
   badgesRow: {
     flexDirection: 'row',
     gap: 10,

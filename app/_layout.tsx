@@ -1,61 +1,46 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { PressStart2P_400Regular, useFonts } from '@expo-google-fonts/press-start-2p';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
 
-export default function TabLayout() {
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+SplashScreen.preventAutoHideAsync();
+
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
+
+export default function RootLayout() {
+  const colorScheme = useColorScheme();
+
+  const [fontsLoaded] = useFonts({
+    PressStart2P_400Regular,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#FF6B6B',
-        tabBarInactiveTintColor: '#999',
-        tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#f0e6e0',
-          height: 60,
-          paddingBottom: 6,
-        },
-      }}
-    >
-      {/* 1. Main Pet Page */}
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Main',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      />
-
-      {/* 2. Calendar / Stats Page */}
-      <Tabs.Screen
-        name="stats"
-        options={{
-          title: 'Calendar',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
-          ),
-        }}
-      />
-
-      {/* 3. Cemetery / Graveyard Page */}
-      <Tabs.Screen
-        name="graveyard"
-        options={{
-          title: 'Cemetery',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="skull" size={size} color={color} />
-          ),
-        }}
-      />
-
-      {/* Hide the pet selection screen from the navbar */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
-        }}
-      />
-    </Tabs>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
