@@ -129,7 +129,7 @@ export default function PetSelectScreen() {
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
-    backgroundColor: buttonGlow.value > 0.5 ? '#FF5252' : '#FF6B6B',
+    backgroundColor: buttonGlow.value > 0.5 ? '#9E2F2F' : '#B83F3F',
   }));
 
   // ==================== LANDSCAPE ====================
@@ -165,7 +165,7 @@ export default function PetSelectScreen() {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <TouchableOpacity onPress={() => changePet('prev')} activeOpacity={0.7}>
-                <Ionicons name="chevron-back" size={30} color="#FF6B6B" />
+                <Ionicons name="chevron-back" size={30} color="#B83F3F" />
               </TouchableOpacity>
 
               <GestureDetector gesture={pan}>
@@ -177,7 +177,7 @@ export default function PetSelectScreen() {
                       borderRadius: 110,
                       backgroundColor: '#FFF7F2',
                       borderWidth: 3,
-                      borderColor: '#FFC300',
+                      borderColor: '#E8B923',
                       justifyContent: 'center',
                       alignItems: 'center',
                       shadowColor: '#000',
@@ -197,7 +197,7 @@ export default function PetSelectScreen() {
               </GestureDetector>
 
               <TouchableOpacity onPress={() => changePet('next')} activeOpacity={0.7}>
-                <Ionicons name="chevron-forward" size={30} color="#FF6B6B" />
+                <Ionicons name="chevron-forward" size={30} color="#B83F3F" />
               </TouchableOpacity>
             </View>
 
@@ -210,7 +210,7 @@ export default function PetSelectScreen() {
                     width: i === activeIndex ? 20 : 8,
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: i === activeIndex ? '#FF6B6B' : '#e0d5cf',
+                    backgroundColor: i === activeIndex ? '#B83F3F' : '#e0d5cf',
                   }}
                 />
               ))}
@@ -255,7 +255,7 @@ export default function PetSelectScreen() {
                   style={{
                     fontSize: 11,
                     fontWeight: '800',
-                    color: '#FF6B6B',
+                    color: '#B83F3F',
                     letterSpacing: 0.6,
                   }}
                 >
@@ -335,7 +335,7 @@ export default function PetSelectScreen() {
                     borderRadius: 16,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    shadowColor: '#FF6B6B',
+                    shadowColor: '#B83F3F',
                     shadowOffset: { width: 0, height: 6 },
                     shadowOpacity: 0.28,
                     shadowRadius: 12,
@@ -376,7 +376,7 @@ export default function PetSelectScreen() {
           style={{
             fontFamily: 'PressStart2P_400Regular',
             fontSize: 15,
-            color: '#FF6B6B',
+            color: '#B83F3F',
             textAlign: 'center',
             marginTop: 8,
           }}
@@ -399,7 +399,7 @@ export default function PetSelectScreen() {
           onPress={() => changePet('prev')}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={28} color="#FF6B6B" />
+          <Ionicons name="chevron-back" size={28} color="#B83F3F" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -407,7 +407,7 @@ export default function PetSelectScreen() {
           onPress={() => changePet('next')}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-forward" size={28} color="#FF6B6B" />
+          <Ionicons name="chevron-forward" size={28} color="#B83F3F" />
         </TouchableOpacity>
 
         <GestureDetector gesture={pan}>
@@ -419,7 +419,7 @@ export default function PetSelectScreen() {
                 borderRadius: 110,
                 backgroundColor: '#FFF7F2',
                 borderWidth: 3.5,
-                borderColor: '#FFC300',
+                borderColor: '#E8B923',
                 justifyContent: 'center',
                 alignItems: 'center',
                 shadowColor: '#000',
@@ -448,7 +448,7 @@ export default function PetSelectScreen() {
               width: i === activeIndex ? 20 : 8,
               height: 8,
               borderRadius: 4,
-              backgroundColor: i === activeIndex ? '#FF6B6B' : '#e0d5cf',
+              backgroundColor: i === activeIndex ? '#B83F3F' : '#e0d5cf',
             }}
           />
         ))}
@@ -493,7 +493,7 @@ export default function PetSelectScreen() {
             style={{
               fontSize: 11,
               fontWeight: '800',
-              color: '#FF6B6B',
+              color: '#B83F3F',
               letterSpacing: 0.8,
             }}
           >
@@ -575,7 +575,7 @@ export default function PetSelectScreen() {
               borderRadius: 16,
               justifyContent: 'center',
               alignItems: 'center',
-              shadowColor: '#FF6B6B',
+              shadowColor: '#B83F3F',
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.28,
               shadowRadius: 12,
