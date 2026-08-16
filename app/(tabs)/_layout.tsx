@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();   // ← this line is required
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -20,7 +20,6 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* 1. Home / Main Pet Dashboard */}
       <Tabs.Screen
         name="home"
         options={{
@@ -30,8 +29,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      {/* 2. Stats / Calendar */}
       <Tabs.Screen
         name="stats"
         options={{
@@ -41,8 +38,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      {/* 3. Graveyard / Cemetery */}
       <Tabs.Screen
         name="graveyard"
         options={{
@@ -50,14 +45,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="skull" size={size} color={color} />
           ),
-        }}
-      />
-
-      {/* Hide pet selection from the tab bar */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
         }}
       />
     </Tabs>
