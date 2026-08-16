@@ -34,16 +34,11 @@ export default function RootLayout() {
       <AuthProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack screenOptions={{ headerShown: false }}>
-            {/* Auth screens */}
+            <Stack.Screen name="index" />
             <Stack.Screen name="(auth)/login" />
             <Stack.Screen name="(auth)/signup" />
-
-            {/* Pet selection (after login) */}
-            <Stack.Screen name="pet-selection" />
-
-            {/* Main app */}
+            <Stack.Screen name="petselection" />
             <Stack.Screen name="(tabs)" />
-
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />

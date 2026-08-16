@@ -1,7 +1,12 @@
+import { auth, db } from '@/services/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Text,
   TextInput,
   TouchableOpacity,
@@ -15,6 +20,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -42,6 +48,7 @@ const PETS = [
 ];
 
 export default function PetSelectScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -49,6 +56,7 @@ export default function PetSelectScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [petName, setPetName] = useState('McHammer');
   const [isDragging, setIsDragging] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -56,6 +64,8 @@ export default function PetSelectScreen() {
   const opacity = useSharedValue(1);
   const buttonScale = useSharedValue(1);
   const buttonGlow = useSharedValue(0);
+  const cinematicScale = useSharedValue(1);
+  const cinematicOpacity = useSharedValue(0);
 
   const currentPet = PETS[activeIndex];
 
@@ -75,8 +85,48 @@ export default function PetSelectScreen() {
     }, 110);
   };
 
-  const startJourney = () => {
-    console.log('Selected:', currentPet.name, 'Name:', petName);
+  const startJourney = async () => {
+    if (!auth.currentUser) {
+      Alert.alert('Not logged in', 'Please log in again.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      // Cinematic pulse
+      cinematicScale.value = withSequence(
+        withTiming(1.25, { duration: 300 }),
+        withTiming(1, { duration: 400 })
+      );
+      cinematicOpacity.value = withSequence(
+        withTiming(0.7, { duration: 200 }),
+        withTiming(0, { duration: 600 })
+      );
+
+      // Save pet to Firestore
+      await setDoc(
+        doc(db, 'users', auth.currentUser.uid),
+        {
+          pet: {
+            id: currentPet.id,
+            type: currentPet.name,
+            name: petName.trim() || currentPet.name,
+            title: currentPet.title,
+            createdAt: new Date().toISOString(),
+          },
+        },
+        { merge: true }
+      );
+
+      // Small delay so the cinematic feels good
+      setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 900);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Could not save your pet');
+      setIsSaving(false);
+    }
   };
 
   const pan = Gesture.Pan()
@@ -95,6 +145,8 @@ export default function PetSelectScreen() {
         const progress = interpolate(e.translationY, [0, 150], [0, 1], Extrapolation.CLAMP);
         buttonScale.value = withSpring(1 + progress * 0.06, { damping: 16 });
         buttonGlow.value = progress;
+        // Slight scale up while dragging down for drama
+        scale.value = interpolate(e.translationY, [0, 150], [1, 1.08], Extrapolation.CLAMP);
       }
     })
     .onEnd((e) => {
@@ -109,10 +161,13 @@ export default function PetSelectScreen() {
           opacity.value = withSpring(1);
         }
       } else {
-        if (e.translationY > 130) runOnJS(startJourney)();
+        if (e.translationY > 130) {
+          runOnJS(startJourney)();
+        }
         translateY.value = withSpring(0, { damping: 16 });
         buttonScale.value = withSpring(1);
         buttonGlow.value = withSpring(0);
+        scale.value = withSpring(1);
       }
 
       runOnJS(setIsDragging)(false);
@@ -122,14 +177,19 @@ export default function PetSelectScreen() {
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
-      { scale: scale.value },
+      { scale: scale.value * cinematicScale.value },
     ],
     opacity: opacity.value,
+    zIndex: 100, // keeps the pet in front while dragging
   }));
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
     backgroundColor: buttonGlow.value > 0.5 ? '#9E2F2F' : '#B83F3F',
+  }));
+
+  const cinematicFlashStyle = useAnimatedStyle(() => ({
+    opacity: cinematicOpacity.value,
   }));
 
   // ==================== LANDSCAPE ====================
@@ -156,11 +216,7 @@ export default function PetSelectScreen() {
               justifyContent: 'center',
               alignItems: 'center',
               paddingVertical: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.12,
-              shadowRadius: 18,
-              elevation: 10,
+              zIndex: 10,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
@@ -180,11 +236,6 @@ export default function PetSelectScreen() {
                       borderColor: '#E8B923',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 12 },
-                      shadowOpacity: 0.14,
-                      shadowRadius: 20,
-                      elevation: 12,
                     }}
                   >
                     <Image
@@ -201,7 +252,6 @@ export default function PetSelectScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Dots */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 22 }}>
               {PETS.map((_, i) => (
                 <View
@@ -228,11 +278,7 @@ export default function PetSelectScreen() {
               paddingHorizontal: 18,
               paddingVertical: 18,
               justifyContent: 'space-between',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.12,
-              shadowRadius: 20,
-              elevation: 12,
+              zIndex: 5,
             }}
           >
             <View>
@@ -244,21 +290,9 @@ export default function PetSelectScreen() {
                   paddingVertical: 5,
                   borderRadius: 20,
                   marginBottom: 10,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 6,
-                  elevation: 3,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '800',
-                    color: '#B83F3F',
-                    letterSpacing: 0.6,
-                  }}
-                >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#B83F3F', letterSpacing: 0.6 }}>
                   {currentPet.title}
                 </Text>
               </View>
@@ -281,21 +315,9 @@ export default function PetSelectScreen() {
                   padding: 14,
                   borderWidth: 1.5,
                   borderColor: '#f0e6e0',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.07,
-                  shadowRadius: 9,
-                  elevation: 4,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color: '#666',
-                    lineHeight: 20,
-                  }}
-                  numberOfLines={4}
-                >
+                <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }} numberOfLines={4}>
                   {currentPet.description}
                 </Text>
               </View>
@@ -316,11 +338,6 @@ export default function PetSelectScreen() {
                   color: '#1a1a1a',
                   backgroundColor: '#FFF9F5',
                   marginBottom: 12,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.06,
-                  shadowRadius: 7,
-                  elevation: 3,
                 }}
                 value={petName}
                 onChangeText={setPetName}
@@ -335,18 +352,17 @@ export default function PetSelectScreen() {
                     borderRadius: 16,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    shadowColor: '#B83F3F',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.28,
-                    shadowRadius: 12,
-                    elevation: 6,
                   },
                   buttonAnimatedStyle,
                 ]}
               >
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>
-                  {isDragging ? 'Drop pet here!' : 'Start Journey →'}
-                </Text>
+                {isSaving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>
+                    {isDragging ? 'Drop pet here!' : 'Start Journey →'}
+                  </Text>
+                )}
               </Animated.View>
             </View>
           </View>
@@ -358,8 +374,25 @@ export default function PetSelectScreen() {
   // ==================== PORTRAIT ====================
   return (
     <View style={{ flex: 1, backgroundColor: '#FFF9F5', paddingTop: insets.top + 12 }}>
+      {/* Cinematic flash overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#E8B923',
+            zIndex: 200,
+          },
+          cinematicFlashStyle,
+        ]}
+      />
+
       {/* Top text */}
-      <View style={{ paddingHorizontal: 28, alignItems: 'center', marginBottom: 10 }}>
+      <View style={{ paddingHorizontal: 28, alignItems: 'center', marginBottom: 10, zIndex: 1 }}>
         <Text
           style={{
             fontSize: 24,
@@ -385,17 +418,18 @@ export default function PetSelectScreen() {
         </Text>
       </View>
 
-      {/* Pet Stage */}
+      {/* Pet Stage - high zIndex so it stays in front while dragging */}
       <View
         style={{
           height: 280,
           justifyContent: 'center',
           alignItems: 'center',
           marginBottom: 8,
+          zIndex: 50,
         }}
       >
         <TouchableOpacity
-          style={{ position: 'absolute', left: 16, zIndex: 10 }}
+          style={{ position: 'absolute', left: 16, zIndex: 60 }}
           onPress={() => changePet('prev')}
           activeOpacity={0.7}
         >
@@ -403,7 +437,7 @@ export default function PetSelectScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={{ position: 'absolute', right: 16, zIndex: 10 }}
+          style={{ position: 'absolute', right: 16, zIndex: 60 }}
           onPress={() => changePet('next')}
           activeOpacity={0.7}
         >
@@ -422,11 +456,11 @@ export default function PetSelectScreen() {
                 borderColor: '#E8B923',
                 justifyContent: 'center',
                 alignItems: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 14 },
-                shadowOpacity: 0.14,
-                shadowRadius: 22,
-                elevation: 12,
+                shadowColor: '#E8B923',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isDragging ? 0.6 : 0.2,
+                shadowRadius: isDragging ? 24 : 12,
+                elevation: isDragging ? 20 : 12,
               }}
             >
               <Image
@@ -440,7 +474,7 @@ export default function PetSelectScreen() {
       </View>
 
       {/* Dots */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 18 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 18, zIndex: 1 }}>
         {PETS.map((_, i) => (
           <View
             key={i}
@@ -466,14 +500,9 @@ export default function PetSelectScreen() {
           paddingHorizontal: 24,
           paddingTop: 24,
           paddingBottom: insets.bottom + 20,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -8 },
-          shadowOpacity: 0.12,
-          shadowRadius: 22,
-          elevation: 18,
+          zIndex: 10,
         }}
       >
-        {/* Title tag */}
         <View
           style={{
             alignSelf: 'center',
@@ -482,26 +511,13 @@ export default function PetSelectScreen() {
             paddingVertical: 5,
             borderRadius: 20,
             marginBottom: 12,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.08,
-            shadowRadius: 6,
-            elevation: 3,
           }}
         >
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: '800',
-              color: '#B83F3F',
-              letterSpacing: 0.8,
-            }}
-          >
+          <Text style={{ fontSize: 11, fontWeight: '800', color: '#B83F3F', letterSpacing: 0.8 }}>
             {currentPet.title}
           </Text>
         </View>
 
-        {/* Name */}
         <Text
           style={{
             fontFamily: 'PressStart2P_400Regular',
@@ -514,7 +530,6 @@ export default function PetSelectScreen() {
           {currentPet.name}
         </Text>
 
-        {/* Description */}
         <View
           style={{
             backgroundColor: '#FFF9F5',
@@ -523,21 +538,9 @@ export default function PetSelectScreen() {
             marginBottom: 22,
             borderWidth: 1.5,
             borderColor: '#f0e6e0',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.07,
-            shadowRadius: 9,
-            elevation: 4,
           }}
         >
-          <Text
-            style={{
-              fontSize: 14,
-              color: '#666',
-              textAlign: 'center',
-              lineHeight: 20,
-            }}
-          >
+          <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20 }}>
             {currentPet.description}
           </Text>
         </View>
@@ -556,11 +559,6 @@ export default function PetSelectScreen() {
             color: '#1a1a1a',
             backgroundColor: '#FFF9F5',
             marginBottom: 16,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.06,
-            shadowRadius: 7,
-            elevation: 3,
           }}
           value={petName}
           onChangeText={setPetName}
@@ -575,18 +573,17 @@ export default function PetSelectScreen() {
               borderRadius: 16,
               justifyContent: 'center',
               alignItems: 'center',
-              shadowColor: '#B83F3F',
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.28,
-              shadowRadius: 12,
-              elevation: 6,
             },
             buttonAnimatedStyle,
           ]}
         >
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
-            {isDragging ? 'Drop pet here!' : 'Start Journey →'}
-          </Text>
+          {isSaving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+              {isDragging ? 'Drop pet here!' : 'Start Journey →'}
+            </Text>
+          )}
         </Animated.View>
       </View>
     </View>

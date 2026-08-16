@@ -26,32 +26,32 @@ export default function SignupScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
-    const handleSignup = async () => {
-        if (!email || !password || !confirmPassword) {
-            Alert.alert('Missing fields', 'Please fill in all fields.');
-            return;
-        }
+  const handleSignup = async () => {
+    if (!email || !password || !confirmPassword) {
+      Alert.alert('Missing fields', 'Please fill in all fields.');
+      return;
+    }
 
-        if (password !== confirmPassword) {
-            Alert.alert('Password mismatch', 'Passwords do not match.');
-            return;
-        }
+    if (password !== confirmPassword) {
+      Alert.alert('Password mismatch', 'Passwords do not match.');
+      return;
+    }
 
-        if (password.length < 6) {
-            Alert.alert('Weak password', 'Password must be at least 6 characters.');
-            return;
-        }
+    if (password.length < 6) {
+      Alert.alert('Weak password', 'Password must be at least 6 characters.');
+      return;
+    }
 
-        try {
-            setLoading(true);
-            await signUp(email.trim(), password);
-            router.replace('/petselection');
-        } catch (error: any) {
-            Alert.alert('Signup failed', error.message || 'Something went wrong');
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+      setLoading(true);
+      await signUp(email.trim(), password);
+      router.replace('/');
+    } catch (error: any) {
+      Alert.alert('Signup failed', error.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#B83F3F' }} edges={['top']}>

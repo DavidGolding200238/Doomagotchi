@@ -24,22 +24,22 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
- const handleLogin = async () => {
-  if (!email || !password) {
-    Alert.alert('Missing fields', 'Please enter both email and password.');
-    return;
-  }
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing fields', 'Please enter both email and password.');
+      return;
+    }
 
-  try {
-    setLoading(true);
-    await signIn(email.trim(), password);
-    router.replace('/petselection');   
-  } catch (error: any) {
-    Alert.alert('Login failed', error.message || 'Something went wrong');
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      await signIn(email.trim(), password);
+      router.replace('/');
+    } catch (error: any) {
+      Alert.alert('Login failed', error.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#B83F3F' }} edges={['top']}>
@@ -237,7 +237,7 @@ export default function LoginScreen() {
             <View style={{ flex: 1, height: 1, backgroundColor: '#f0e6e0' }} />
           </View>
 
-          {/* Google button (placeholder for now) */}
+          {/* Google button */}
           <Pressable
             onPress={signInWithGoogle}
             style={{
