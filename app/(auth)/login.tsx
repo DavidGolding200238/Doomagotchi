@@ -1,6 +1,10 @@
+import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,9 +16,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+  const router = useRouter();
+  const { signIn, signInWithGoogle } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+ const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert('Missing fields', 'Please enter both email and password.');
+    return;
+  }
+
+  try {
+    setLoading(true);
+    await signIn(email.trim(), password);
+    router.replace('/petselection');   
+  } catch (error: any) {
+    Alert.alert('Login failed', error.message || 'Something went wrong');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#B83F3F' }} edges={['top']}>
@@ -165,12 +190,15 @@ export default function LoginScreen() {
 
           {/* Log In button */}
           <Pressable
+            onPress={handleLogin}
+            disabled={loading}
             style={{
               backgroundColor: '#B83F3F',
               borderRadius: 14,
               paddingVertical: 16,
               alignItems: 'center',
               marginBottom: 24,
+              opacity: loading ? 0.7 : 1,
               shadowColor: '#B83F3F',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.25,
@@ -178,9 +206,13 @@ export default function LoginScreen() {
               elevation: 4,
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-              Log In →
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
+                Log In →
+              </Text>
+            )}
           </Pressable>
 
           {/* OR divider */}
@@ -205,8 +237,9 @@ export default function LoginScreen() {
             <View style={{ flex: 1, height: 1, backgroundColor: '#f0e6e0' }} />
           </View>
 
-          {/* Google button */}
+          {/* Google button (placeholder for now) */}
           <Pressable
+            onPress={signInWithGoogle}
             style={{
               backgroundColor: '#fff',
               borderWidth: 1.5,
@@ -227,7 +260,10 @@ export default function LoginScreen() {
           </Pressable>
 
           {/* Sign up */}
-          <Pressable style={{ alignItems: 'center' }}>
+          <Pressable
+            style={{ alignItems: 'center' }}
+            onPress={() => router.push('/(auth)/signup' as any)}
+          >
             <Text style={{ fontSize: 14, color: '#777' }}>
               Don’t have an account?{' '}
               <Text style={{ color: '#B83F3F', fontWeight: '700' }}>Sign up</Text>

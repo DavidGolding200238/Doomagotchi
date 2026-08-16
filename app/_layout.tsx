@@ -12,10 +12,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -37,8 +33,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            {/* Auth screens */}
+            <Stack.Screen name="(auth)/login" />
+            <Stack.Screen name="(auth)/signup" />
+
+            {/* Pet selection (after login) */}
+            <Stack.Screen name="pet-selection" />
+
+            {/* Main app */}
+            <Stack.Screen name="(tabs)" />
+
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />

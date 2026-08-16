@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
+import { Auth, getAuth, initializeAuth } from 'firebase/auth';
 
-// @ts-expect-error - getReactNativePersistence exists at runtime but is missing from types
+// @ts-expect-error
 import { getReactNativePersistence } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -17,11 +17,14 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-const auth =
-  getApps().length === 0
-    ? initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage),
-      })
-    : getAuth(app);
+let auth: Auth;
+
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch (e) {
+  auth = getAuth(app);
+}
 
 export { app, auth };
