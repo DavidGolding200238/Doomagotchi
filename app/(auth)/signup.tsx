@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { styles } from '@/styles/signup.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -54,51 +55,27 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#B83F3F' }} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: '#FFF9F5' }}
+        style={styles.keyboard}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingHorizontal: 28,
-            paddingTop: 20,
-            paddingBottom: 40,
-          }}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back button */}
-          <Pressable
-            onPress={() => router.back()}
-            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 6 }}
-          >
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#B83F3F" />
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#B83F3F' }}>Back</Text>
+            <Text style={styles.backText}>Back</Text>
           </Pressable>
 
-          {/* Header */}
-          <View style={{ alignItems: 'center', marginBottom: 40 }}>
-            <Text
-              style={{
-                fontFamily: 'PressStart2P_400Regular',
-                fontSize: 18,
-                color: '#1a1a1a',
-                marginBottom: 8,
-              }}
-            >
-              Create Account
-            </Text>
-            <Text style={{ fontSize: 14, color: '#777', textAlign: 'center' }}>
-              Your pet is waiting for you
-            </Text>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Create Account</Text>
+            <Text style={styles.headerSubtitle}>Your pet is waiting for you</Text>
           </View>
 
-          {/* Email */}
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#777', marginBottom: 8 }}>
-            EMAIL
-          </Text>
+          <Text style={styles.fieldLabel}>EMAIL</Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
@@ -106,124 +83,65 @@ export default function SignupScreen() {
             placeholderTextColor="#bbb"
             keyboardType="email-address"
             autoCapitalize="none"
-            style={{
-              backgroundColor: '#fff',
-              borderWidth: 1.5,
-              borderColor: '#f0e6e0',
-              borderRadius: 14,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              fontSize: 15,
-              color: '#1a1a1a',
-              marginBottom: 18,
-            }}
+            style={styles.input}
           />
 
-          {/* Password */}
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#777', marginBottom: 8 }}>
-            PASSWORD
-          </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#fff',
-              borderWidth: 1.5,
-              borderColor: '#f0e6e0',
-              borderRadius: 14,
-              marginBottom: 18,
-            }}
-          >
+          <Text style={styles.fieldLabel}>PASSWORD</Text>
+          <View style={styles.passwordRow}>
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
               placeholderTextColor="#bbb"
               secureTextEntry={!showPassword}
-              style={{
-                flex: 1,
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                fontSize: 15,
-                color: '#1a1a1a',
-              }}
+              style={styles.passwordInput}
             />
             <Pressable
               onPress={() => setShowPassword(!showPassword)}
-              style={{ paddingHorizontal: 16, paddingVertical: 14 }}
+              style={styles.showHideBtn}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#B83F3F' }}>
+              <Text style={styles.showHideText}>
                 {showPassword ? 'HIDE' : 'SHOW'}
               </Text>
             </Pressable>
           </View>
 
-          {/* Confirm Password */}
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#777', marginBottom: 8 }}>
-            CONFIRM PASSWORD
-          </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#fff',
-              borderWidth: 1.5,
-              borderColor: '#f0e6e0',
-              borderRadius: 14,
-              marginBottom: 28,
-            }}
-          >
+          <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
+          <View style={styles.passwordRowLast}>
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="••••••••"
               placeholderTextColor="#bbb"
               secureTextEntry={!showConfirm}
-              style={{
-                flex: 1,
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                fontSize: 15,
-                color: '#1a1a1a',
-              }}
+              style={styles.passwordInput}
             />
             <Pressable
               onPress={() => setShowConfirm(!showConfirm)}
-              style={{ paddingHorizontal: 16, paddingVertical: 14 }}
+              style={styles.showHideBtn}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#B83F3F' }}>
+              <Text style={styles.showHideText}>
                 {showConfirm ? 'HIDE' : 'SHOW'}
               </Text>
             </Pressable>
           </View>
 
-          {/* Sign Up button */}
           <Pressable
             onPress={handleSignup}
             disabled={loading}
-            style={{
-              backgroundColor: '#B83F3F',
-              borderRadius: 14,
-              paddingVertical: 16,
-              alignItems: 'center',
-              marginBottom: 24,
-              opacity: loading ? 0.7 : 1,
-            }}
+            style={[styles.signupBtn, { opacity: loading ? 0.7 : 1 }]}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                Create Account →
-              </Text>
+              <Text style={styles.signupBtnText}>Create Account →</Text>
             )}
           </Pressable>
 
-          {/* Back to Login */}
-          <Pressable style={{ alignItems: 'center' }} onPress={() => router.back()}>
-            <Text style={{ fontSize: 14, color: '#777' }}>
+          <Pressable style={styles.loginRow} onPress={() => router.back()}>
+            <Text style={styles.loginText}>
               Already have an account?{' '}
-              <Text style={{ color: '#B83F3F', fontWeight: '700' }}>Log in</Text>
+              <Text style={styles.loginLink}>Log in</Text>
             </Text>
           </Pressable>
         </ScrollView>

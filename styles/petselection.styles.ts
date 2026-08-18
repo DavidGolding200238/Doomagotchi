@@ -1,139 +1,244 @@
-import { Dimensions, StyleSheet } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
-  container: {
+  // ========== LANDSCAPE ==========
+  landscapeContainer: {
     flex: 1,
     backgroundColor: '#FFF9F5',
   },
-  topSection: {
-    paddingHorizontal: 28,
-    marginBottom: 12,
-    alignItems: 'center',
+  landscapeRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 14,
   },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#1a1a1a',
-    letterSpacing: -0.6,
-    textAlign: 'center',
-    lineHeight: 33,
-  },
-  pixelTitle: {
-    fontFamily: 'PressStart2P_400Regular',
-    fontSize: 16,
-    color: '#FF6B6B',
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  accentLine: {
-    width: 36,
-    height: 3,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 2,
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 14.5,
-    color: '#777',
-    lineHeight: 20,
-    textAlign: 'center',
-    paddingHorizontal: 10,
-  },
-  stage: {
-    height: 340,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrow: {
-    position: 'absolute',
-    top: '32%',
-    zIndex: 10,
-    padding: 10,
-  },
-  arrowLeft: {
-    left: 8,
-  },
-  arrowRight: {
-    right: 8,
-  },
-  petWrapper: {
-    alignItems: 'center',
-    width: width * 0.75,   // ← this is what was missing
-  },
-  circleFrame: {
-    width: 230,
-    height: 230,
-    borderRadius: 115,
+  landscapePetCard: {
+    width: '46%',
     backgroundColor: '#FFF0EB',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingVertical: 16,
+    zIndex: 10,
+  },
+  landscapePetControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  landscapePetCircle: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#FFF7F2',
     borderWidth: 3,
-    borderColor: '#FF6B6B',
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    borderColor: '#E8B923',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  petImage: {
-    width: '88%',
-    height: '88%',
+  landscapeDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 22,
   },
-  petTitle: {
-    fontSize: 12,
+  landscapeInfoCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    justifyContent: 'space-between',
+    zIndex: 5,
+  },
+  landscapeTitlePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF0EB',
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  landscapeTitlePillText: {
+    fontSize: 11,
     fontWeight: '800',
-    color: '#FF6B6B',
-    letterSpacing: 1.1,
-    marginBottom: 4,
+    color: '#B83F3F',
+    letterSpacing: 0.6,
   },
-  petName: {
+  landscapePetName: {
     fontFamily: 'PressStart2P_400Regular',
     fontSize: 16,
+    color: '#1a1a1a',
+    marginBottom: 10,
+  },
+  landscapeDescriptionBox: {
+    backgroundColor: '#FFF9F5',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+  },
+  landscapeDescriptionText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  landscapeNameLabel: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 8,
   },
-  petDescription: {
-    fontSize: 13.5,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 19,
-    paddingHorizontal: 10,
+  landscapeNameInput: {
+    height: 46,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: '#1a1a1a',
+    backgroundColor: '#FFF9F5',
+    marginBottom: 12,
   },
-  dots: {
-    flexDirection: 'row',
+  landscapeStartButton: {
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
-    marginBottom: 28,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#e0d5cf',
+  landscapeStartButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
   },
-  dotActive: {
-    backgroundColor: '#FF6B6B',
-    width: 22,
+
+  // ========== PORTRAIT ==========
+  portraitContainer: {
+    flex: 1,
+    backgroundColor: '#FFF9F5',
   },
-  nameSection: {
-    paddingHorizontal: 24,
+  cinematicFlash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#E8B923',
+    zIndex: 200,
+  },
+  portraitTopText: {
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    marginBottom: 10,
+    zIndex: 1,
+  },
+  portraitHeaderTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#1a1a1a',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    lineHeight: 30,
+  },
+  portraitPixelTitle: {
+    fontFamily: 'PressStart2P_400Regular',
+    fontSize: 15,
+    color: '#B83F3F',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  portraitStage: {
+    height: 280,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    zIndex: 50,
+  },
+  portraitArrowLeft: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 60,
+  },
+  portraitArrowRight: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 60,
+  },
+  portraitPetCircle: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#FFF7F2',
+    borderWidth: 3.5,
+    borderColor: '#E8B923',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#E8B923',
+    shadowOffset: { width: 0, height: 0 },
+  },
+  portraitDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: 18,
-    marginTop: 4,
+    zIndex: 1,
   },
-  nameLabel: {
+  portraitInfoCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    zIndex: 10,
+  },
+  portraitTitlePill: {
+    alignSelf: 'center',
+    backgroundColor: '#FFF0EB',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  portraitTitlePillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B83F3F',
+    letterSpacing: 0.8,
+  },
+  portraitPetName: {
+    fontFamily: 'PressStart2P_400Regular',
+    fontSize: 20,
+    color: '#1a1a1a',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  portraitDescriptionBox: {
+    backgroundColor: '#FFF9F5',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 22,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+  },
+  portraitDescriptionText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  portraitNameLabel: {
     fontSize: 14,
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 10,
   },
-  nameInput: {
+  portraitNameInput: {
     height: 50,
     borderWidth: 1.5,
     borderColor: '#f0e6e0',
@@ -141,24 +246,27 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 15,
     color: '#1a1a1a',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFF9F5',
+    marginBottom: 16,
   },
-  startButton: {
-    marginHorizontal: 24,
+  portraitStartButton: {
     height: 54,
-    backgroundColor: '#FF6B6B',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 6,
   },
-  startButtonText: {
+  portraitStartButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '800',
+  },
+
+  // ========== SHARED ==========
+  dot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  petAnimatedWrap: {
+    alignItems: 'center',
   },
 });

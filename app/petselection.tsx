@@ -1,4 +1,5 @@
 import { auth, db } from '@/services/firebase';
+import { styles } from '@/styles/petselection.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -54,7 +55,7 @@ export default function PetSelectScreen() {
   const isLandscape = width > height;
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [petName, setPetName] = useState('McHammer');
+  const [petName, setPetName] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -94,7 +95,6 @@ export default function PetSelectScreen() {
     try {
       setIsSaving(true);
 
-      // Cinematic pulse
       cinematicScale.value = withSequence(
         withTiming(1.25, { duration: 300 }),
         withTiming(1, { duration: 400 })
@@ -104,7 +104,6 @@ export default function PetSelectScreen() {
         withTiming(0, { duration: 600 })
       );
 
-      // Save pet to Firestore
       await setDoc(
         doc(db, 'users', auth.currentUser.uid),
         {
@@ -119,7 +118,6 @@ export default function PetSelectScreen() {
         { merge: true }
       );
 
-      // Small delay so the cinematic feels good
       setTimeout(() => {
         router.replace('/(tabs)/home');
       }, 900);
@@ -145,7 +143,6 @@ export default function PetSelectScreen() {
         const progress = interpolate(e.translationY, [0, 150], [0, 1], Extrapolation.CLAMP);
         buttonScale.value = withSpring(1 + progress * 0.06, { damping: 16 });
         buttonGlow.value = progress;
-        // Slight scale up while dragging down for drama
         scale.value = interpolate(e.translationY, [0, 150], [1, 1.08], Extrapolation.CLAMP);
       }
     })
@@ -180,7 +177,7 @@ export default function PetSelectScreen() {
       { scale: scale.value * cinematicScale.value },
     ],
     opacity: opacity.value,
-    zIndex: 100, // keeps the pet in front while dragging
+    zIndex: 100,
   }));
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
@@ -196,48 +193,26 @@ export default function PetSelectScreen() {
   if (isLandscape) {
     return (
       <View
-        style={{
-          flex: 1,
-          backgroundColor: '#FFF9F5',
-          paddingTop: insets.top + 10,
-          paddingBottom: insets.bottom + 10,
-          paddingHorizontal: 14,
-        }}
+        style={[
+          styles.landscapeContainer,
+          {
+            paddingTop: insets.top + 10,
+            paddingBottom: insets.bottom + 10,
+            paddingHorizontal: 14,
+          },
+        ]}
       >
-        <View style={{ flex: 1, flexDirection: 'row', gap: 14 }}>
+        <View style={styles.landscapeRow}>
           {/* LEFT — Pet Card */}
-          <View
-            style={{
-              width: '46%',
-              backgroundColor: '#FFF0EB',
-              borderRadius: 28,
-              borderWidth: 1.5,
-              borderColor: '#f0e6e0',
-              justifyContent: 'center',
-              alignItems: 'center',
-              paddingVertical: 16,
-              zIndex: 10,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+          <View style={styles.landscapePetCard}>
+            <View style={styles.landscapePetControls}>
               <TouchableOpacity onPress={() => changePet('prev')} activeOpacity={0.7}>
                 <Ionicons name="chevron-back" size={30} color="#B83F3F" />
               </TouchableOpacity>
 
               <GestureDetector gesture={pan}>
-                <Animated.View style={[{ alignItems: 'center' }, petAnimatedStyle]}>
-                  <View
-                    style={{
-                      width: 220,
-                      height: 220,
-                      borderRadius: 110,
-                      backgroundColor: '#FFF7F2',
-                      borderWidth: 3,
-                      borderColor: '#E8B923',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
+                <Animated.View style={[styles.petAnimatedWrap, petAnimatedStyle]}>
+                  <View style={styles.landscapePetCircle}>
                     <Image
                       source={require('@/assets/images/duckpet.gif')}
                       style={{ width: '84%', height: '84%' }}
@@ -252,114 +227,53 @@ export default function PetSelectScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 22 }}>
+            <View style={styles.landscapeDots}>
               {PETS.map((_, i) => (
                 <View
                   key={i}
-                  style={{
-                    width: i === activeIndex ? 20 : 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: i === activeIndex ? '#B83F3F' : '#e0d5cf',
-                  }}
+                  style={[
+                    styles.dot,
+                    {
+                      width: i === activeIndex ? 20 : 8,
+                      backgroundColor: i === activeIndex ? '#B83F3F' : '#e0d5cf',
+                    },
+                  ]}
                 />
               ))}
             </View>
           </View>
 
           {/* RIGHT — Info Card */}
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: '#fff',
-              borderRadius: 28,
-              borderWidth: 1.5,
-              borderColor: '#f0e6e0',
-              paddingHorizontal: 18,
-              paddingVertical: 18,
-              justifyContent: 'space-between',
-              zIndex: 5,
-            }}
-          >
+          <View style={styles.landscapeInfoCard}>
             <View>
-              <View
-                style={{
-                  alignSelf: 'flex-start',
-                  backgroundColor: '#FFF0EB',
-                  paddingHorizontal: 11,
-                  paddingVertical: 5,
-                  borderRadius: 20,
-                  marginBottom: 10,
-                }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#B83F3F', letterSpacing: 0.6 }}>
-                  {currentPet.title}
-                </Text>
+              <View style={styles.landscapeTitlePill}>
+                <Text style={styles.landscapeTitlePillText}>{currentPet.title}</Text>
               </View>
 
-              <Text
-                style={{
-                  fontFamily: 'PressStart2P_400Regular',
-                  fontSize: 16,
-                  color: '#1a1a1a',
-                  marginBottom: 10,
-                }}
-              >
-                {currentPet.name}
-              </Text>
+              <Text style={styles.landscapePetName}>{currentPet.name}</Text>
 
-              <View
-                style={{
-                  backgroundColor: '#FFF9F5',
-                  borderRadius: 16,
-                  padding: 14,
-                  borderWidth: 1.5,
-                  borderColor: '#f0e6e0',
-                }}
-              >
-                <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }} numberOfLines={4}>
+              <View style={styles.landscapeDescriptionBox}>
+                <Text style={styles.landscapeDescriptionText} numberOfLines={4}>
                   {currentPet.description}
                 </Text>
               </View>
             </View>
 
             <View>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
-                Name your pet
-              </Text>
+              <Text style={styles.landscapeNameLabel}>Name your pet</Text>
               <TextInput
-                style={{
-                  height: 46,
-                  borderWidth: 1.5,
-                  borderColor: '#f0e6e0',
-                  borderRadius: 14,
-                  paddingHorizontal: 14,
-                  fontSize: 15,
-                  color: '#1a1a1a',
-                  backgroundColor: '#FFF9F5',
-                  marginBottom: 12,
-                }}
+                style={styles.landscapeNameInput}
                 value={petName}
                 onChangeText={setPetName}
                 placeholder="Give them a name..."
                 placeholderTextColor="#bbb"
               />
 
-              <Animated.View
-                style={[
-                  {
-                    height: 48,
-                    borderRadius: 16,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  },
-                  buttonAnimatedStyle,
-                ]}
-              >
+              <Animated.View style={[styles.landscapeStartButton, buttonAnimatedStyle]}>
                 {isSaving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>
+                  <Text style={styles.landscapeStartButtonText}>
                     {isDragging ? 'Drop pet here!' : 'Start Journey →'}
                   </Text>
                 )}
@@ -373,63 +287,20 @@ export default function PetSelectScreen() {
 
   // ==================== PORTRAIT ====================
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFF9F5', paddingTop: insets.top + 12 }}>
-      {/* Cinematic flash overlay */}
+    <View style={[styles.portraitContainer, { paddingTop: insets.top + 12 }]}>
       <Animated.View
         pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#E8B923',
-            zIndex: 200,
-          },
-          cinematicFlashStyle,
-        ]}
+        style={[styles.cinematicFlash, cinematicFlashStyle]}
       />
 
-      {/* Top text */}
-      <View style={{ paddingHorizontal: 28, alignItems: 'center', marginBottom: 10, zIndex: 1 }}>
-        <Text
-          style={{
-            fontSize: 24,
-            fontWeight: '900',
-            color: '#1a1a1a',
-            letterSpacing: -0.5,
-            textAlign: 'center',
-            lineHeight: 30,
-          }}
-        >
-          Break a habit with your lil
-        </Text>
-        <Text
-          style={{
-            fontFamily: 'PressStart2P_400Regular',
-            fontSize: 15,
-            color: '#B83F3F',
-            textAlign: 'center',
-            marginTop: 8,
-          }}
-        >
-          DIGITAL PET!
-        </Text>
+      <View style={styles.portraitTopText}>
+        <Text style={styles.portraitHeaderTitle}>Break a habit with your lil</Text>
+        <Text style={styles.portraitPixelTitle}>DIGITAL PET!</Text>
       </View>
 
-      {/* Pet Stage - high zIndex so it stays in front while dragging */}
-      <View
-        style={{
-          height: 280,
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: 8,
-          zIndex: 50,
-        }}
-      >
+      <View style={styles.portraitStage}>
         <TouchableOpacity
-          style={{ position: 'absolute', left: 16, zIndex: 60 }}
+          style={styles.portraitArrowLeft}
           onPress={() => changePet('prev')}
           activeOpacity={0.7}
         >
@@ -437,7 +308,7 @@ export default function PetSelectScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={{ position: 'absolute', right: 16, zIndex: 60 }}
+          style={styles.portraitArrowRight}
           onPress={() => changePet('next')}
           activeOpacity={0.7}
         >
@@ -445,23 +316,16 @@ export default function PetSelectScreen() {
         </TouchableOpacity>
 
         <GestureDetector gesture={pan}>
-          <Animated.View style={[{ alignItems: 'center' }, petAnimatedStyle]}>
+          <Animated.View style={[styles.petAnimatedWrap, petAnimatedStyle]}>
             <View
-              style={{
-                width: 220,
-                height: 220,
-                borderRadius: 110,
-                backgroundColor: '#FFF7F2',
-                borderWidth: 3.5,
-                borderColor: '#E8B923',
-                justifyContent: 'center',
-                alignItems: 'center',
-                shadowColor: '#E8B923',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: isDragging ? 0.6 : 0.2,
-                shadowRadius: isDragging ? 24 : 12,
-                elevation: isDragging ? 20 : 12,
-              }}
+              style={[
+                styles.portraitPetCircle,
+                {
+                  shadowOpacity: isDragging ? 0.6 : 0.2,
+                  shadowRadius: isDragging ? 24 : 12,
+                  elevation: isDragging ? 20 : 12,
+                },
+              ]}
             >
               <Image
                 source={require('@/assets/images/duckpet.gif')}
@@ -473,114 +337,46 @@ export default function PetSelectScreen() {
         </GestureDetector>
       </View>
 
-      {/* Dots */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 18, zIndex: 1 }}>
+      <View style={styles.portraitDots}>
         {PETS.map((_, i) => (
           <View
             key={i}
-            style={{
-              width: i === activeIndex ? 20 : 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: i === activeIndex ? '#B83F3F' : '#e0d5cf',
-            }}
+            style={[
+              styles.dot,
+              {
+                width: i === activeIndex ? 20 : 8,
+                backgroundColor: i === activeIndex ? '#B83F3F' : '#e0d5cf',
+              },
+            ]}
           />
         ))}
       </View>
 
-      {/* White Info Card */}
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#fff',
-          borderTopLeftRadius: 32,
-          borderTopRightRadius: 32,
-          borderWidth: 1.5,
-          borderColor: '#f0e6e0',
-          paddingHorizontal: 24,
-          paddingTop: 24,
-          paddingBottom: insets.bottom + 20,
-          zIndex: 10,
-        }}
-      >
-        <View
-          style={{
-            alignSelf: 'center',
-            backgroundColor: '#FFF0EB',
-            paddingHorizontal: 12,
-            paddingVertical: 5,
-            borderRadius: 20,
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ fontSize: 11, fontWeight: '800', color: '#B83F3F', letterSpacing: 0.8 }}>
-            {currentPet.title}
-          </Text>
+      <View style={[styles.portraitInfoCard, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={styles.portraitTitlePill}>
+          <Text style={styles.portraitTitlePillText}>{currentPet.title}</Text>
         </View>
 
-        <Text
-          style={{
-            fontFamily: 'PressStart2P_400Regular',
-            fontSize: 20,
-            color: '#1a1a1a',
-            textAlign: 'center',
-            marginBottom: 14,
-          }}
-        >
-          {currentPet.name}
-        </Text>
+        <Text style={styles.portraitPetName}>{currentPet.name}</Text>
 
-        <View
-          style={{
-            backgroundColor: '#FFF9F5',
-            borderRadius: 16,
-            padding: 14,
-            marginBottom: 22,
-            borderWidth: 1.5,
-            borderColor: '#f0e6e0',
-          }}
-        >
-          <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20 }}>
-            {currentPet.description}
-          </Text>
+        <View style={styles.portraitDescriptionBox}>
+          <Text style={styles.portraitDescriptionText}>{currentPet.description}</Text>
         </View>
 
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a1a1a', marginBottom: 10 }}>
-          Name your new responsibility
-        </Text>
+        <Text style={styles.portraitNameLabel}>Name your new responsibility</Text>
         <TextInput
-          style={{
-            height: 50,
-            borderWidth: 1.5,
-            borderColor: '#f0e6e0',
-            borderRadius: 14,
-            paddingHorizontal: 16,
-            fontSize: 15,
-            color: '#1a1a1a',
-            backgroundColor: '#FFF9F5',
-            marginBottom: 16,
-          }}
+          style={styles.portraitNameInput}
           value={petName}
           onChangeText={setPetName}
           placeholder="Give them a name..."
           placeholderTextColor="#bbb"
         />
 
-        <Animated.View
-          style={[
-            {
-              height: 54,
-              borderRadius: 16,
-              justifyContent: 'center',
-              alignItems: 'center',
-            },
-            buttonAnimatedStyle,
-          ]}
-        >
+        <Animated.View style={[styles.portraitStartButton, buttonAnimatedStyle]}>
           {isSaving ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+            <Text style={styles.portraitStartButtonText}>
               {isDragging ? 'Drop pet here!' : 'Start Journey →'}
             </Text>
           )}
