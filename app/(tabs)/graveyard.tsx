@@ -16,11 +16,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const PET_IMAGE = require('@/assets/images/duckpet.gif');
+const DUCK = require('@/assets/images/duckpet.gif');
+const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
+
+const DEAD_IMAGE: Record<string, any> = {
+  Nugget: DUCK,
+  Waddles: DUCK,
+  Spino: SPINO_DEAD,
+};
+
+function petImage(type?: string) {
+  return DEAD_IMAGE[type ?? ''] ?? DUCK;
+}
 
 type FallenPet = {
   id: string;
   name: string;
+  type?: string;
   days: number;
   cause: string;
   date: string;
@@ -51,9 +63,9 @@ export default function GraveyardScreen() {
           orderBy('date', 'desc')
         );
         const snapshot = await getDocs(q);
-        const pets: FallenPet[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<FallenPet, 'id'>),
+        const pets: FallenPet[] = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<FallenPet, 'id'>),
         }));
         setFallen(pets);
       } catch (error) {
@@ -80,7 +92,11 @@ export default function GraveyardScreen() {
             style={[styles.modalCard, { width: modalWidth, maxHeight: height * 0.85 }]}
           >
             <View style={styles.modalPetWrap}>
-              <Image source={PET_IMAGE} style={{ width: 88, height: 88, opacity: 0.72 }} contentFit="contain" />
+              <Image
+                source={petImage(selectedPet.type)}
+                style={{ width: 88, height: 88, opacity: 0.85 }}
+                contentFit="contain"
+              />
               <View style={styles.modalShadow} />
             </View>
 
@@ -114,7 +130,6 @@ export default function GraveyardScreen() {
     );
   }
 
-  // ==================== LANDSCAPE ====================
   if (isLandscape) {
     return (
       <SafeAreaView style={styles.safeRed} edges={['top']}>
@@ -136,7 +151,11 @@ export default function GraveyardScreen() {
               fallen.map((pet) => (
                 <Pressable key={pet.id} onPress={() => setSelectedPet(pet)} style={styles.petCard}>
                   <View style={styles.petAvatar}>
-                    <Image source={PET_IMAGE} style={{ width: '84%', height: '84%', opacity: 0.75 }} contentFit="contain" />
+                    <Image
+                      source={petImage(pet.type)}
+                      style={{ width: '84%', height: '84%', opacity: 0.85 }}
+                      contentFit="contain"
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.petName}>{pet.name}</Text>
@@ -181,7 +200,6 @@ export default function GraveyardScreen() {
     );
   }
 
-  // ==================== PORTRAIT ====================
   return (
     <SafeAreaView style={styles.safeRed} edges={['top']}>
       <View style={styles.darkBg}>
@@ -221,7 +239,11 @@ export default function GraveyardScreen() {
               {fallen.map((pet) => (
                 <Pressable key={pet.id} onPress={() => setSelectedPet(pet)} style={styles.petCard}>
                   <View style={styles.petAvatar}>
-                    <Image source={PET_IMAGE} style={{ width: '84%', height: '84%', opacity: 0.75 }} contentFit="contain" />
+                    <Image
+                      source={petImage(pet.type)}
+                      style={{ width: '84%', height: '84%', opacity: 0.85 }}
+                      contentFit="contain"
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.petName}>{pet.name}</Text>
@@ -237,7 +259,12 @@ export default function GraveyardScreen() {
           )}
 
           <View style={styles.reservedPlot}>
-            <Ionicons name="alert-circle-outline" size={22} color="#B83F3F" style={{ marginBottom: 6 }} />
+            <Ionicons
+              name="alert-circle-outline"
+              size={22}
+              color="#B83F3F"
+              style={{ marginBottom: 6 }}
+            />
             <Text style={styles.reservedText}>
               This plot is reserved{'\n'}for your current pet
             </Text>
@@ -252,7 +279,7 @@ export default function GraveyardScreen() {
               Most of them died between 2 AM and 4 AM. Charge your phone in another room tonight.
             </Text>
             <Pressable>
-              <Text style={styles.lessonLink}>Set Sleep Habits →</Text>
+              <Text style={styles.lessonLink}>Set Sleep Habits</Text>
             </Pressable>
           </View>
         </ScrollView>

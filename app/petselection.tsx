@@ -1,10 +1,11 @@
 import { auth, db } from '@/services/firebase';
+import { createDefaultHealth } from '@/services/health';
 import { styles } from '@/styles/petselection.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { doc, setDoc } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -33,18 +34,30 @@ const PETS = [
     name: 'Nugget',
     title: 'THE SOFT ONE',
     description: 'Tiny, round, and emotionally fragile. Dies a little every time you open TikTok.',
+    images: {
+      happy: [require('@/assets/images/duckpet.gif')],
+    },
   },
   {
     id: '2',
     name: 'Waddles',
     title: 'THE HAPPY DUCK',
     description: 'Has one brain cell and it’s trusting you with it. Don’t open Instagram.',
+    images: {
+      happy: [require('@/assets/images/duckpet.gif')],
+    },
   },
   {
     id: '3',
-    name: 'Bloop',
-    title: 'THE HOPEFUL ONE',
-    description: 'Pure of heart, empty of thoughts. Will stare at you in silent betrayal if you scroll at 2am.',
+    name: 'Spino',
+    title: 'THE ANCIENT ONE',
+    description: 'Survived extinction. Won’t survive your Reels addiction.',
+    images: {
+      happy: [
+        require('@/assets/pets/Spinosaurus/Idle Spino.gif'),
+        require('@/assets/pets/Spinosaurus/Walking Spino.gif'),
+      ],
+    },
   },
 ];
 
@@ -58,6 +71,7 @@ export default function PetSelectScreen() {
   const [petName, setPetName] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [happyFrame, setHappyFrame] = useState(0);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -69,6 +83,22 @@ export default function PetSelectScreen() {
   const cinematicOpacity = useSharedValue(0);
 
   const currentPet = PETS[activeIndex];
+  const currentImage =
+    currentPet.images.happy[happyFrame % currentPet.images.happy.length];
+
+  // Rotate idle ↔ walk for pets with more than one happy frame (Spino)
+  useEffect(() => {
+    setHappyFrame(0);
+
+    const frames = currentPet.images.happy;
+    if (frames.length < 2) return;
+
+    const id = setInterval(() => {
+      setHappyFrame((prev) => (prev + 1) % frames.length);
+    }, 2000);
+
+    return () => clearInterval(id);
+  }, [activeIndex]);
 
   const changePet = (direction: 'next' | 'prev') => {
     opacity.value = withTiming(0, { duration: 100 });
@@ -113,6 +143,7 @@ export default function PetSelectScreen() {
             name: petName.trim() || currentPet.name,
             title: currentPet.title,
             createdAt: new Date().toISOString(),
+            ...createDefaultHealth(),
           },
         },
         { merge: true }
@@ -136,8 +167,18 @@ export default function PetSelectScreen() {
 
       if (isHorizontal) {
         translateX.value = e.translationX;
-        scale.value = interpolate(Math.abs(e.translationX), [0, 120], [1, 0.93], Extrapolation.CLAMP);
-        opacity.value = interpolate(Math.abs(e.translationX), [0, 120], [1, 0.7], Extrapolation.CLAMP);
+        scale.value = interpolate(
+          Math.abs(e.translationX),
+          [0, 120],
+          [1, 0.93],
+          Extrapolation.CLAMP
+        );
+        opacity.value = interpolate(
+          Math.abs(e.translationX),
+          [0, 120],
+          [1, 0.7],
+          Extrapolation.CLAMP
+        );
       } else {
         translateY.value = Math.max(0, e.translationY);
         const progress = interpolate(e.translationY, [0, 150], [0, 1], Extrapolation.CLAMP);
@@ -203,7 +244,6 @@ export default function PetSelectScreen() {
         ]}
       >
         <View style={styles.landscapeRow}>
-          {/* LEFT — Pet Card */}
           <View style={styles.landscapePetCard}>
             <View style={styles.landscapePetControls}>
               <TouchableOpacity onPress={() => changePet('prev')} activeOpacity={0.7}>
@@ -214,7 +254,7 @@ export default function PetSelectScreen() {
                 <Animated.View style={[styles.petAnimatedWrap, petAnimatedStyle]}>
                   <View style={styles.landscapePetCircle}>
                     <Image
-                      source={require('@/assets/images/duckpet.gif')}
+                      source={currentImage}
                       style={{ width: '84%', height: '84%' }}
                       contentFit="contain"
                     />
@@ -243,7 +283,6 @@ export default function PetSelectScreen() {
             </View>
           </View>
 
-          {/* RIGHT — Info Card */}
           <View style={styles.landscapeInfoCard}>
             <View>
               <View style={styles.landscapeTitlePill}>
@@ -288,10 +327,7 @@ export default function PetSelectScreen() {
   // ==================== PORTRAIT ====================
   return (
     <View style={[styles.portraitContainer, { paddingTop: insets.top + 12 }]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.cinematicFlash, cinematicFlashStyle]}
-      />
+      <Animated.View pointerEvents="none" style={[styles.cinematicFlash, cinematicFlashStyle]} />
 
       <View style={styles.portraitTopText}>
         <Text style={styles.portraitHeaderTitle}>Break a habit with your lil</Text>
@@ -328,7 +364,7 @@ export default function PetSelectScreen() {
               ]}
             >
               <Image
-                source={require('@/assets/images/duckpet.gif')}
+                source={currentImage}
                 style={{ width: '85%', height: '85%' }}
                 contentFit="contain"
               />
