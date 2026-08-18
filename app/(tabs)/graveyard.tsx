@@ -1,183 +1,104 @@
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/services/firebase';
+import { styles } from '@/styles/graveyard.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    Text,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PET_IMAGE = require('@/assets/images/duckpet.gif');
 
-const FALLEN = [
-  {
-    id: '1',
-    name: 'Sparky',
-    days: 14,
-    cause: 'TIKTOK OVERDOSE',
-    date: 'Oct 12, 2023',
-    epitaph: 'Here lies Sparky.\nHe swore “just one more video”\nwouldn’t kill him.',
-  },
-  {
-    id: '2',
-    name: 'Bloop',
-    days: 5,
-    cause: 'REELS ADDICTION',
-    date: 'Nov 05, 2023',
-    epitaph: 'Here lies Bloop.\nHis last words were\n“this one is actually funny though”.',
-  },
-  {
-    id: '3',
-    name: 'Robo-X',
-    days: 22,
-    cause: 'TWITTER DOOM-SCROLLING',
-    date: 'Dec 20, 2023',
-    epitaph: 'Here lies Robo-X.\nHe went looking for discourse\nand found eternal rest instead.',
-  },
-  {
-    id: '4',
-    name: 'Flame',
-    days: 2,
-    cause: 'LATE NIGHT SCROLLING',
-    date: 'Jan 15, 2024',
-    epitaph: 'Here lies Flame.\nDied doing what he loved:\nscrolling at 3:47 AM.',
-  },
-];
+type FallenPet = {
+  id: string;
+  name: string;
+  days: number;
+  cause: string;
+  date: string;
+  epitaph: string;
+};
 
 export default function GraveyardScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const [selectedPet, setSelectedPet] = useState<(typeof FALLEN)[0] | null>(null);
+  const { user } = useAuth();
+
+  const [fallen, setFallen] = useState<FallenPet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPet, setSelectedPet] = useState<FallenPet | null>(null);
 
   const modalWidth = Math.min(320, width - 40);
+
+  useEffect(() => {
+    async function loadGraveyard() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const q = query(
+          collection(db, 'users', user.uid, 'graveyard'),
+          orderBy('date', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        const pets: FallenPet[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<FallenPet, 'id'>),
+        }));
+        setFallen(pets);
+      } catch (error) {
+        console.log('Error loading graveyard:', error);
+        setFallen([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadGraveyard();
+  }, [user]);
+
+  const bestStreak = fallen.length > 0 ? Math.max(...fallen.map((p) => p.days)) : 0;
 
   const GravestoneModal = () => {
     if (!selectedPet) return null;
 
     return (
       <Modal visible={!!selectedPet} transparent animationType="fade">
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.82)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 20,
-          }}
-          onPress={() => setSelectedPet(null)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedPet(null)}>
           <Pressable
             onPress={(e) => e.stopPropagation()}
-            style={{
-              width: modalWidth,
-              maxHeight: height * 0.85,
-              backgroundColor: '#2A1F1C',
-              borderTopLeftRadius: 80,
-              borderTopRightRadius: 80,
-              borderBottomLeftRadius: 10,
-              borderBottomRightRadius: 10,
-              borderWidth: 2.5,
-              borderColor: '#5A4038',
-              paddingTop: 28,
-              paddingBottom: 24,
-              paddingHorizontal: 20,
-              alignItems: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.5,
-              shadowRadius: 20,
-              elevation: 16,
-            }}
+            style={[styles.modalCard, { width: modalWidth, maxHeight: height * 0.85 }]}
           >
-            {/* Pet alone + shadow underneath */}
-            <View style={{ alignItems: 'center', marginBottom: 16 }}>
-              <Image
-                source={PET_IMAGE}
-                style={{ width: 88, height: 88, opacity: 0.72 }}
-                contentFit="contain"
-              />
-              <View
-                style={{
-                  width: 64,
-                  height: 12,
-                  borderRadius: 50,
-                  backgroundColor: 'rgba(0,0,0,0.55)',
-                  marginTop: -5,
-                }}
-              />
+            <View style={styles.modalPetWrap}>
+              <Image source={PET_IMAGE} style={{ width: 88, height: 88, opacity: 0.72 }} contentFit="contain" />
+              <View style={styles.modalShadow} />
             </View>
 
-            <Text
-              style={{
-                fontFamily: 'PressStart2P_400Regular',
-                fontSize: 14,
-                color: '#F5E6D3',
-                textAlign: 'center',
-                marginBottom: 5,
-              }}
-            >
-              {selectedPet.name}
-            </Text>
+            <Text style={styles.modalName}>{selectedPet.name}</Text>
+            <Text style={styles.modalDays}>Lived {selectedPet.days} days</Text>
 
-            <Text style={{ fontSize: 13, color: '#C9B8A8', marginBottom: 12 }}>
-              Lived {selectedPet.days} days
-            </Text>
-
-            <View
-              style={{
-                backgroundColor: '#3D1F1C',
-                paddingHorizontal: 11,
-                paddingVertical: 4,
-                borderRadius: 9,
-                marginBottom: 16,
-              }}
-            >
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#E07A6A' }}>
-                {selectedPet.cause}
-              </Text>
+            <View style={styles.modalCausePill}>
+              <Text style={styles.modalCauseText}>{selectedPet.cause}</Text>
             </View>
 
-            <View
-              style={{
-                borderTopWidth: 1.5,
-                borderBottomWidth: 1.5,
-                borderColor: '#3D2E2A',
-                paddingVertical: 14,
-                width: '100%',
-                marginBottom: 14,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: '#E8D5C4',
-                  textAlign: 'center',
-                  lineHeight: 21,
-                  fontStyle: 'italic',
-                }}
-              >
-                {selectedPet.epitaph}
-              </Text>
+            <View style={styles.modalEpitaphWrap}>
+              <Text style={styles.modalEpitaph}>{selectedPet.epitaph}</Text>
             </View>
 
-            <Text style={{ fontSize: 13, color: '#BBAEA0', marginBottom: 18 }}>
-              {selectedPet.date}
-            </Text>
+            <Text style={styles.modalDate}>{selectedPet.date}</Text>
 
-            <Pressable
-              onPress={() => setSelectedPet(null)}
-              style={{
-                backgroundColor: '#B83F3F',
-                paddingHorizontal: 26,
-                paddingVertical: 11,
-                borderRadius: 12,
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Close</Text>
+            <Pressable onPress={() => setSelectedPet(null)} style={styles.modalCloseBtn}>
+              <Text style={styles.modalCloseText}>Close</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -185,144 +106,76 @@ export default function GraveyardScreen() {
     );
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeRed, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#F5E6D3" />
+      </SafeAreaView>
+    );
+  }
+
   // ==================== LANDSCAPE ====================
   if (isLandscape) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#B83F3F' }} edges={['top']}>
-        <View style={{ flex: 1, backgroundColor: '#1A1210', flexDirection: 'row', padding: 12, gap: 14 }}>
-          
-          {/* LEFT — scrollable cards */}
+      <SafeAreaView style={styles.safeRed} edges={['top']}>
+        <View style={styles.landscapeRow}>
           <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
+            style={styles.landscapeScroll}
+            contentContainerStyle={styles.landscapeScrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {FALLEN.map((pet) => (
-              <Pressable
-                key={pet.id}
-                onPress={() => setSelectedPet(pet)}
-                style={{
-                  flexDirection: 'row',
-                  backgroundColor: '#2A1F1C',
-                  borderRadius: 16,
-                  borderWidth: 1.5,
-                  borderColor: '#3D2E2A',
-                  padding: 12,
-                  alignItems: 'center',
-                  gap: 14,
-                }}
-              >
-                <View
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 36,
-                    backgroundColor: '#1A1210',
-                    borderWidth: 2.5,
-                    borderColor: '#5A4038',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Image
-                    source={PET_IMAGE}
-                    style={{ width: '84%', height: '84%', opacity: 0.75 }}
-                    contentFit="contain"
-                  />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: 'PressStart2P_400Regular', fontSize: 13, color: '#E8D5C4' }}>
-                    {pet.name}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#C9B8A8', marginTop: 4 }}>
-                    Lived {pet.days} days
-                  </Text>
-                  <View
-                    style={{
-                      alignSelf: 'flex-start',
-                      backgroundColor: '#3D1F1C',
-                      paddingHorizontal: 9,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                      marginTop: 6,
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#E07A6A' }}>{pet.cause}</Text>
+            {fallen.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="skull-outline" size={40} color="#5A4038" />
+                <Text style={styles.emptyTitle}>No fallen pets yet</Text>
+                <Text style={styles.emptyBody}>
+                  Keep your current pet alive.{'\n'}This place fills when you fail.
+                </Text>
+              </View>
+            ) : (
+              fallen.map((pet) => (
+                <Pressable key={pet.id} onPress={() => setSelectedPet(pet)} style={styles.petCard}>
+                  <View style={styles.petAvatar}>
+                    <Image source={PET_IMAGE} style={{ width: '84%', height: '84%', opacity: 0.75 }} contentFit="contain" />
                   </View>
-                  <Text style={{ fontSize: 12, color: '#BBAEA0', marginTop: 6 }}>{pet.date}</Text>
-                </View>
-              </Pressable>
-            ))}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.petName}>{pet.name}</Text>
+                    <Text style={styles.petDays}>Lived {pet.days} days</Text>
+                    <View style={styles.causePill}>
+                      <Text style={styles.causeText}>{pet.cause}</Text>
+                    </View>
+                    <Text style={styles.petDate}>{pet.date}</Text>
+                  </View>
+                </Pressable>
+              ))
+            )}
 
-            <View
-              style={{
-                borderWidth: 1.5,
-                borderColor: '#B83F3F',
-                borderStyle: 'dashed',
-                borderRadius: 14,
-                padding: 16,
-                alignItems: 'center',
-                backgroundColor: '#2A1F1C',
-              }}
-            >
-              <Text style={{ fontSize: 13, color: '#E07A6A', textAlign: 'center', fontWeight: '600' }}>
-                This plot is reserved for your current pet
-              </Text>
+            <View style={styles.reservedPlot}>
+              <Text style={styles.reservedText}>This plot is reserved for your current pet</Text>
             </View>
           </ScrollView>
 
-          {/* RIGHT — skull header */}
-          <View style={{ width: '34%', justifyContent: 'center', alignItems: 'center', gap: 14 }}>
-            <View
-              style={{
-                width: 70,
-                height: 70,
-                borderRadius: 18,
-                backgroundColor: '#B83F3F',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#B83F3F',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.4,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-            >
+          <View style={styles.landscapeRight}>
+            <View style={styles.landscapeSkullBox}>
               <Ionicons name="skull" size={34} color="#FFF" />
             </View>
-
-            <Text
-              style={{
-                fontFamily: 'PressStart2P_400Regular',
-                fontSize: 12,
-                color: '#F5E6D3',
-                textAlign: 'center',
-                lineHeight: 18,
-              }}
-            >
+            <Text style={styles.landscapeTitle}>
               Eternal Resting{'\n'}Place
             </Text>
-
-            <Text style={{ fontSize: 13, color: '#C9B8A8', textAlign: 'center', lineHeight: 18 }}>
-              Every scroll cost a soul.
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+            <Text style={styles.landscapeSubtitle}>Every scroll cost a soul.</Text>
+            <View style={styles.landscapeStatsRow}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 11, color: '#BBAEA0' }}>SOULS</Text>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: '#F5E6D3' }}>4</Text>
+                <Text style={styles.landscapeStatLabel}>SOULS</Text>
+                <Text style={styles.landscapeStatValue}>{fallen.length}</Text>
               </View>
-              <View style={{ width: 1, backgroundColor: '#3D2E2A' }} />
+              <View style={styles.landscapeDivider} />
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 11, color: '#BBAEA0' }}>BEST</Text>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: '#F5E6D3' }}>22d</Text>
+                <Text style={styles.landscapeStatLabel}>BEST</Text>
+                <Text style={styles.landscapeStatValue}>{bestStreak}d</Text>
               </View>
             </View>
           </View>
         </View>
-
         <GravestoneModal />
       </SafeAreaView>
     );
@@ -330,180 +183,80 @@ export default function GraveyardScreen() {
 
   // ==================== PORTRAIT ====================
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#B83F3F' }} edges={['top']}>
-      <View style={{ flex: 1, backgroundColor: '#1A1210' }}>
-        <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View
-              style={{
-                width: 70,
-                height: 70,
-                borderRadius: 20,
-                backgroundColor: '#B83F3F',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 14,
-                shadowColor: '#B83F3F',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.4,
-                shadowRadius: 14,
-                elevation: 10,
-              }}
-            >
+    <SafeAreaView style={styles.safeRed} edges={['top']}>
+      <View style={styles.darkBg}>
+        <ScrollView contentContainerStyle={styles.portraitScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.portraitHeader}>
+            <View style={styles.portraitSkullBox}>
               <Ionicons name="skull" size={34} color="#FFF" />
             </View>
-
-            <Text
-              style={{
-                fontFamily: 'PressStart2P_400Regular',
-                fontSize: 15,
-                color: '#F5E6D3',
-                textAlign: 'center',
-                marginBottom: 6,
-              }}
-            >
-              Eternal Resting Place
-            </Text>
-
-            <Text style={{ fontSize: 14, color: '#C9B8A8', textAlign: 'center', lineHeight: 20 }}>
-              Every scroll cost a soul.{'\n'}
-              Remember those who suffered.
+            <Text style={styles.portraitTitle}>Eternal Resting Place</Text>
+            <Text style={styles.portraitSubtitle}>
+              Every scroll cost a soul.{'\n'}Remember those who suffered.
             </Text>
           </View>
 
-          {/* Stats */}
-          <View
-            style={{
-              flexDirection: 'row',
-              backgroundColor: '#2A1F1C',
-              borderRadius: 14,
-              borderWidth: 1.5,
-              borderColor: '#3D2E2A',
-              marginBottom: 20,
-              overflow: 'hidden',
-            }}
-          >
-            <View style={{ flex: 1, paddingVertical: 14, alignItems: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#BBAEA0' }}>TOTAL SOULS</Text>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: '#F5E6D3', marginTop: 2 }}>4</Text>
+          <View style={styles.portraitStatsBar}>
+            <View style={styles.portraitStatCell}>
+              <Text style={styles.portraitStatLabel}>TOTAL SOULS</Text>
+              <Text style={styles.portraitStatValue}>{fallen.length}</Text>
             </View>
-            <View style={{ width: 1, backgroundColor: '#3D2E2A' }} />
-            <View style={{ flex: 1, paddingVertical: 14, alignItems: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#BBAEA0' }}>BEST STREAK</Text>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: '#F5E6D3', marginTop: 2 }}>22d</Text>
+            <View style={styles.portraitStatsDivider} />
+            <View style={styles.portraitStatCell}>
+              <Text style={styles.portraitStatLabel}>BEST STREAK</Text>
+              <Text style={styles.portraitStatValue}>{bestStreak}d</Text>
             </View>
           </View>
 
-          {/* Cards */}
-          <View style={{ gap: 12, marginBottom: 18 }}>
-            {FALLEN.map((pet) => (
-              <Pressable
-                key={pet.id}
-                onPress={() => setSelectedPet(pet)}
-                style={{
-                  flexDirection: 'row',
-                  backgroundColor: '#2A1F1C',
-                  borderRadius: 16,
-                  borderWidth: 1.5,
-                  borderColor: '#3D2E2A',
-                  padding: 12,
-                  alignItems: 'center',
-                  gap: 14,
-                }}
-              >
-                <View
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 36,
-                    backgroundColor: '#1A1210',
-                    borderWidth: 2.5,
-                    borderColor: '#5A4038',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Image
-                    source={PET_IMAGE}
-                    style={{ width: '84%', height: '84%', opacity: 0.75 }}
-                    contentFit="contain"
-                  />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: 'PressStart2P_400Regular', fontSize: 13, color: '#E8D5C4' }}>
-                    {pet.name}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#C9B8A8', marginTop: 4 }}>
-                    Lived {pet.days} days
-                  </Text>
-                  <View
-                    style={{
-                      alignSelf: 'flex-start',
-                      backgroundColor: '#3D1F1C',
-                      paddingHorizontal: 9,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                      marginTop: 6,
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#E07A6A' }}>{pet.cause}</Text>
+          {fallen.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="skull-outline" size={48} color="#5A4038" />
+              <Text style={styles.emptyTitle}>No fallen pets yet</Text>
+              <Text style={styles.emptyBody}>
+                Keep your current pet alive.{'\n'}This place fills when you fail.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.cardsList}>
+              {fallen.map((pet) => (
+                <Pressable key={pet.id} onPress={() => setSelectedPet(pet)} style={styles.petCard}>
+                  <View style={styles.petAvatar}>
+                    <Image source={PET_IMAGE} style={{ width: '84%', height: '84%', opacity: 0.75 }} contentFit="contain" />
                   </View>
-                  <Text style={{ fontSize: 12, color: '#BBAEA0', marginTop: 6 }}>{pet.date}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.petName}>{pet.name}</Text>
+                    <Text style={styles.petDays}>Lived {pet.days} days</Text>
+                    <View style={styles.causePill}>
+                      <Text style={styles.causeText}>{pet.cause}</Text>
+                    </View>
+                    <Text style={styles.petDate}>{pet.date}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
-          {/* Reserved plot */}
-          <View
-            style={{
-              borderWidth: 1.5,
-              borderColor: '#B83F3F',
-              borderStyle: 'dashed',
-              borderRadius: 14,
-              paddingVertical: 16,
-              paddingHorizontal: 14,
-              alignItems: 'center',
-              backgroundColor: '#2A1F1C',
-              marginBottom: 16,
-            }}
-          >
+          <View style={styles.reservedPlot}>
             <Ionicons name="alert-circle-outline" size={22} color="#B83F3F" style={{ marginBottom: 6 }} />
-            <Text style={{ fontSize: 13, color: '#E07A6A', textAlign: 'center', fontWeight: '600', lineHeight: 19 }}>
+            <Text style={styles.reservedText}>
               This plot is reserved{'\n'}for your current pet
             </Text>
           </View>
 
-          {/* Lesson */}
-          <View
-            style={{
-              backgroundColor: '#2A1F1C',
-              borderRadius: 14,
-              padding: 14,
-              borderWidth: 1.5,
-              borderColor: '#3D2E2A',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+          <View style={styles.lessonCard}>
+            <View style={styles.lessonHeader}>
               <Ionicons name="moon-outline" size={15} color="#E8D5C4" />
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#E8D5C4' }}>A Lesson from the Past</Text>
+              <Text style={styles.lessonTitle}>A Lesson from the Past</Text>
             </View>
-            <Text style={{ fontSize: 13, color: '#C9B8A8', lineHeight: 19, marginBottom: 8 }}>
+            <Text style={styles.lessonBody}>
               Most of them died between 2 AM and 4 AM. Charge your phone in another room tonight.
             </Text>
             <Pressable>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#E07A6A' }}>Set Sleep Habits →</Text>
+              <Text style={styles.lessonLink}>Set Sleep Habits →</Text>
             </Pressable>
           </View>
         </ScrollView>
       </View>
-
       <GravestoneModal />
     </SafeAreaView>
   );

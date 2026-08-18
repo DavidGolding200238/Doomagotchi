@@ -1,153 +1,228 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
-  safe: {
+  // Shared
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#FFF9F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ========== LANDSCAPE ==========
+  landscapeSafe: {
     flex: 1,
     backgroundColor: '#FFF9F5',
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-
-  // Header
-  header: {
+  landscapeRow: {
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginBottom: 8,
+    padding: 14,
+    gap: 14,
   },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    letterSpacing: 0.3,
-  },
-  bellBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
+  landscapePetCard: {
+    width: '38%',
+    backgroundColor: '#FFF0EB',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
   },
-
-  // Pet Card
-  petCard: {
-    borderRadius: 24,
+  landscapeLevel: {
+    fontFamily: 'PressStart2P_400Regular',
+    fontSize: 11,
+    color: '#1a1a1a',
+    marginBottom: 14,
+    opacity: 0.85,
+  },
+  landscapePetCircle: {
+    width: 176,
+    height: 176,
+    borderRadius: 88,
+    backgroundColor: '#FFF7F2',
+    borderWidth: 3,
+    borderColor: '#E8B923',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  landscapePetName: {
+    fontFamily: 'PressStart2P_400Regular',
+    fontSize: 13,
+    color: '#1a1a1a',
+    marginTop: 16,
+  },
+  landscapeWhiteCard: {
+    flex: 1,
     backgroundColor: '#fff',
+    borderRadius: 28,
     borderWidth: 1.5,
     borderColor: '#f0e6e0',
     overflow: 'hidden',
-    marginBottom: 22,
-    position: 'relative',
   },
-  vitalityBadge: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    zIndex: 2,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  vitalityText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  petImageWrap: {
-    height: 240,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF0EB',
-  },
-  petImage: {
-    width: 190,
-    height: 190,
+  landscapeScrollContent: {
+    padding: 18,
+    paddingBottom: 24,
   },
 
-  // Health / Happiness bars
+  // ========== PORTRAIT ==========
+  portraitSafe: {
+    flex: 1,
+    backgroundColor: '#B83F3F',
+  },
+  portraitHero: {
+    paddingTop: 8,
+    paddingBottom: 28,
+    alignItems: 'center',
+    backgroundColor: '#FFF0EB',
+  },
+  portraitHeaderRow: {
+    width: '100%',
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  portraitLevel: {
+    fontFamily: 'PressStart2P_400Regular',
+    fontSize: 12,
+    color: '#1a1a1a',
+    opacity: 0.9,
+  },
+  portraitDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6B6B',
+    opacity: 0.7,
+  },
+  portraitPetCircle: {
+    width: 232,
+    height: 232,
+    borderRadius: 116,
+    backgroundColor: '#FFF7F2',
+    borderWidth: 3.5,
+    borderColor: '#FFC300',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  portraitPetName: {
+    fontFamily: 'PressStart2P_400Regular',
+    fontSize: 17,
+    color: '#1a1a1a',
+    marginTop: 18,
+  },
+  portraitWhiteCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -22,
+    borderWidth: 1.5,
+    borderColor: '#d4c8be',
+    overflow: 'hidden',
+  },
+  portraitScrollContent: {
+    paddingHorizontal: 22,
+    paddingTop: 28,
+    paddingBottom: 40,
+  },
+
+  // ========== SHARED UI ==========
   barsRow: {
     flexDirection: 'row',
+    gap: 16,
+    marginBottom: 26,
+  },
+  barsRowLandscape: {
+    flexDirection: 'row',
     gap: 14,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   barBlock: {
     flex: 1,
   },
   barLabelRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    justifyContent: 'space-between',
     marginBottom: 7,
   },
+  barLabelRowLandscape: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   barLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#777',
+  },
+  barLabelLandscape: {
     fontSize: 11,
     fontWeight: '700',
     color: '#777',
-    letterSpacing: 0.4,
-    flex: 1,
   },
   barValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1a1a1a',
+  },
+  barValueLandscape: {
     fontSize: 13,
     fontWeight: '800',
     color: '#1a1a1a',
   },
-  barTrack: {
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#f0e6e0',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
 
-  // Section headers
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '800',
     color: '#1a1a1a',
-    letterSpacing: 0.5,
+    marginBottom: 12,
   },
-  demoToggle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#999',
+  sectionTitleLandscape: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1a1a1a',
+    marginBottom: 10,
   },
 
-  // Focus Analysis card
   focusCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: '#fff',
+    padding: 17,
+    borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#f0e6e0',
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  focusLeft: {
+  focusCardLandscape: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    marginBottom: 22,
   },
   focusLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#777',
-    letterSpacing: 0.3,
+  },
+  focusLabelLandscape: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#777',
   },
   focusValue: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#1a1a1a',
+    marginTop: 2,
+  },
+  focusValueLandscape: {
     fontSize: 22,
     fontWeight: '900',
     color: '#1a1a1a',
@@ -156,29 +231,66 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 5,
   },
+  focusRightLandscape: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
   statusPill: {
     paddingHorizontal: 11,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 10,
+  },
+  statusPillLandscape: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9,
+  },
+  statusText: {
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  statusTextLandscape: {
+    fontWeight: '800',
+    fontSize: 11,
   },
   limitText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#999',
   },
+  limitTextLandscape: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#999',
+  },
 
-  // Power Ups
   powerList: {
-    gap: 10,
-    marginBottom: 24,
+    gap: 11,
+    marginBottom: 28,
+  },
+  powerListLandscape: {
+    gap: 9,
+    marginBottom: 22,
   },
   powerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    backgroundColor: '#FFF7F2',
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+  },
+  powerCardLandscape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFF7F2',
     borderWidth: 1.5,
     borderColor: '#f0e6e0',
   },
@@ -188,46 +300,108 @@ export const styles = StyleSheet.create({
     gap: 13,
     flex: 1,
   },
+  powerLeftLandscape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
   powerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#FFF0EB',
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: '#E8B923',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  powerIconLandscape: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: '#E8B923',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  powerXp: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  powerXpLandscape: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#fff',
+  },
   powerTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  powerTitleLandscape: {
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#1a1a1a',
   },
   powerMeta: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 2,
+  },
+  powerMetaLandscape: {
     fontSize: 11,
     fontWeight: '600',
     color: '#999',
     marginTop: 2,
   },
+  powerChevron: {
+    color: '#C4B5A8',
+    fontSize: 18,
+  },
+  powerChevronLandscape: {
+    color: '#C4B5A8',
+    fontSize: 17,
+  },
 
-  // Badges
   badgesRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 11,
+  },
+  badgesRowLandscape: {
+    flexDirection: 'row',
+    gap: 9,
   },
   badgeCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 6,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+    borderRadius: 22,
+    backgroundColor: '#FFF7F2',
     borderWidth: 1.5,
-    borderColor: '#f0e6e0',
-    gap: 6,
+    borderColor: '#F0E6E0',
+    gap: 8,
+  },
+  badgeCardLandscape: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderRadius: 18,
+    backgroundColor: '#FFF7F2',
+    borderWidth: 1.5,
+    borderColor: '#F0E6E0',
+    gap: 7,
   },
   badgeName: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#777',
+    color: '#555',
+    textAlign: 'center',
+  },
+  badgeNameLandscape: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#555',
     textAlign: 'center',
   },
 });
