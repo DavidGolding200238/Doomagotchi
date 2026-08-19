@@ -17,11 +17,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DUCK = require('@/assets/images/duckpet.gif');
+const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
 
 const DEAD_IMAGE: Record<string, any> = {
   Nugget: DUCK,
-  Waddles: DUCK,
+  Waddles: DUCK_DEAD,
   Spino: SPINO_DEAD,
 };
 

@@ -20,7 +20,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// ─────────────────────────────────────────────
+// PET ANIMATIONS
+// ─────────────────────────────────────────────
 const DUCK = require('@/assets/images/duckpet.gif');
+const DUCK_IDLE = require('@/assets/pets/Duck/Duck Idle.gif');
+const DUCK_WALK = require('@/assets/pets/Duck/Duck Walk.gif');
+const DUCK_SICK = require('@/assets/pets/Duck/Duck Sick.gif');
+const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
+
 const SPINO_IDLE = require('@/assets/pets/Spinosaurus/Idle Spino.gif');
 const SPINO_WALK = require('@/assets/pets/Spinosaurus/Walking Spino.gif');
 const SPINO_SICK = require('@/assets/pets/Spinosaurus/Sick Spino.gif');
@@ -35,9 +43,9 @@ const PET_FRAMES: Record<string, Record<AnimState, any[]>> = {
     dead: [DUCK],
   },
   Waddles: {
-    happy: [DUCK],
-    sick: [DUCK],
-    dead: [DUCK],
+    happy: [DUCK_IDLE, DUCK_WALK],
+    sick: [DUCK_SICK],
+    dead: [DUCK_DEAD],
   },
   Spino: {
     happy: [SPINO_IDLE, SPINO_WALK],
@@ -52,7 +60,137 @@ function getAnimState(health: number): AnimState {
   return 'happy';
 }
 
-/** MOCK — 12 = healthy, 90+ = depletes toward sick/dead */
+// ─────────────────────────────────────────────
+// CHALLENGES
+// ─────────────────────────────────────────────
+type ChallengeStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'failed';
+
+type Challenge = {
+  id: string;
+  name: string;
+  description: string;
+  type: 'daily' | 'streak' | 'milestone';
+  goal: string;
+  current: number;
+  target: number;
+  status: ChallengeStatus;
+  xp: number;
+};
+
+const INITIAL_CHALLENGES: Challenge[] = [
+  {
+    id: '1',
+    name: 'First Light',
+    description: 'Stay under your scroll limit for 1 full day',
+    type: 'daily',
+    goal: '1 healthy day',
+    current: 0,
+    target: 1,
+    status: 'available',
+    xp: 40,
+  },
+  {
+    id: '2',
+    name: 'No Reels Night',
+    description: 'Zero Instagram / TikTok / Reels between 21:00 – 07:00',
+    type: 'daily',
+    goal: 'Clean night',
+    current: 0,
+    target: 1,
+    status: 'locked',
+    xp: 50,
+  },
+  {
+    id: '3',
+    name: 'Two-Day Streak',
+    description: 'Keep your pet healthy for 2 consecutive days',
+    type: 'streak',
+    goal: '2 day streak',
+    current: 0,
+    target: 2,
+    status: 'locked',
+    xp: 80,
+  },
+  {
+    id: '4',
+    name: 'Scroll Fast',
+    description: 'Stay under 50% of your daily limit',
+    type: 'daily',
+    goal: 'Under 50%',
+    current: 0,
+    target: 1,
+    status: 'locked',
+    xp: 60,
+  },
+  {
+    id: '5',
+    name: 'Three-Day Streak',
+    description: '3 consecutive healthy days',
+    type: 'streak',
+    goal: '3 day streak',
+    current: 0,
+    target: 3,
+    status: 'locked',
+    xp: 120,
+  },
+  {
+    id: '6',
+    name: 'Morning Mute',
+    description: 'No social apps before 10:00',
+    type: 'daily',
+    goal: 'Clean morning',
+    current: 0,
+    target: 1,
+    status: 'locked',
+    xp: 45,
+  },
+  {
+    id: '7',
+    name: 'Five-Day Guardian',
+    description: '5 consecutive days under limit',
+    type: 'streak',
+    goal: '5 day streak',
+    current: 0,
+    target: 5,
+    status: 'locked',
+    xp: 180,
+  },
+  {
+    id: '8',
+    name: 'Weekend Warrior',
+    description: 'Both Saturday and Sunday under limit',
+    type: 'streak',
+    goal: 'Full weekend',
+    current: 0,
+    target: 2,
+    status: 'locked',
+    xp: 100,
+  },
+  {
+    id: '9',
+    name: 'Week of Focus',
+    description: '7 consecutive healthy days',
+    type: 'streak',
+    goal: '7 day streak',
+    current: 0,
+    target: 7,
+    status: 'locked',
+    xp: 250,
+  },
+  {
+    id: '10',
+    name: 'Pet Protector',
+    description: 'Keep the same pet alive for 14 days total',
+    type: 'milestone',
+    goal: '14 days alive',
+    current: 0,
+    target: 14,
+    status: 'locked',
+    xp: 400,
+  },
+];
+
+/** MOCK — high value so the pet is currently sick/dead for testing */
 const MOCK_SCROLL_MINUTES = 900;
 
 type PetData = {
@@ -89,6 +227,111 @@ function PixelBar({ value, color }: { value: number; color: string }) {
   );
 }
 
+function ChallengeCard({ challenge }: { challenge: Challenge }) {
+  const isLocked = challenge.status === 'locked';
+  const isFailed = challenge.status === 'failed';
+  const isCompleted = challenge.status === 'completed';
+  const isInProgress = challenge.status === 'in_progress' || challenge.status === 'available';
+
+  const progress = Math.min(100, (challenge.current / challenge.target) * 100);
+
+  return (
+    <View
+      style={[
+        styles.powerCard,
+        {
+          opacity: isLocked ? 0.45 : 1,
+          borderColor: isFailed ? '#FECACA' : isCompleted ? '#BBF7D0' : '#f0e6e0',
+          backgroundColor: isFailed ? '#FFF1F2' : isCompleted ? '#F0FDF4' : '#fff',
+        },
+      ]}
+    >
+      <View style={styles.powerLeft}>
+        <View
+          style={[
+            styles.powerIcon,
+            {
+              backgroundColor: isLocked
+                ? '#e5e5e5'
+                : isFailed
+                ? '#FEE2E2'
+                : isCompleted
+                ? '#DCFCE7'
+                : '#FFF1F2',
+            },
+          ]}
+        >
+          {isLocked ? (
+            <Ionicons name="lock-closed" size={16} color="#9ca3af" />
+          ) : isCompleted ? (
+            <Ionicons name="checkmark" size={18} color="#16a34a" />
+          ) : isFailed ? (
+            <Ionicons name="refresh" size={16} color="#dc2626" />
+          ) : (
+            <Text style={styles.powerXp}>{challenge.xp}</Text>
+          )}
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.powerTitle,
+              { color: isLocked ? '#9ca3af' : '#1a1a1a' },
+            ]}
+            numberOfLines={1}
+          >
+            {challenge.name}
+          </Text>
+
+          <Text
+            style={[
+              styles.powerMeta,
+              { color: isLocked ? '#c4b5a5' : '#8a7a70' },
+            ]}
+            numberOfLines={1}
+          >
+            {isLocked
+              ? 'Locked'
+              : isFailed
+              ? 'Failed — resets at midnight'
+              : isCompleted
+              ? 'Completed'
+              : `${challenge.current}/${challenge.target} • ${challenge.goal}`}
+          </Text>
+
+          {/* Progress bar only when in progress */}
+          {isInProgress && challenge.target > 1 && (
+            <View
+              style={{
+                height: 4,
+                backgroundColor: '#f0e6e0',
+                borderRadius: 2,
+                marginTop: 6,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  width: `${progress}%`,
+                  height: '100%',
+                  backgroundColor: '#B83F3F',
+                  borderRadius: 2,
+                }}
+              />
+            </View>
+          )}
+        </View>
+      </View>
+
+      {!isLocked && !isCompleted && (
+        <Text style={[styles.powerChevron, { color: isFailed ? '#dc2626' : '#B83F3F' }]}>
+          {isFailed ? '↺' : '›'}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -106,14 +349,10 @@ export default function HomeScreen() {
   const [scrollMinutes, setScrollMinutes] = useState(0);
   const [scrollLimit, setScrollLimit] = useState(45);
 
+  const [challenges] = useState<Challenge[]>(INITIAL_CHALLENGES);
+
   const level = 12;
   const isHealthy = scrollMinutes <= scrollLimit;
-
-  const powerUps = [
-    { id: '1', title: 'No Instagram for 4 hours', xp: 50, tag: 'ENERGY REGEN' },
-    { id: '2', title: 'Read 10 pages of a book', xp: 30, tag: 'ENERGY REGEN' },
-    { id: '3', title: 'Morning digital detox (1hr)', xp: 40, tag: 'ENERGY REGEN' },
-  ];
 
   const badges = [
     { id: '1', name: 'Sun Gazer', type: 'sun' as const },
@@ -402,26 +641,11 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <Text style={styles.sectionTitleLandscape}>HELP {petName.toUpperCase()}</Text>
+              <Text style={styles.sectionTitleLandscape}>CHALLENGES</Text>
 
               <View style={styles.powerListLandscape}>
-                {powerUps.map((item) => (
-                  <Pressable key={item.id} style={styles.powerCardLandscape}>
-                    <View style={styles.powerLeftLandscape}>
-                      <View style={styles.powerIconLandscape}>
-                        <Text style={styles.powerXpLandscape}>XP</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.powerTitleLandscape} numberOfLines={1}>
-                          {item.title}
-                        </Text>
-                        <Text style={styles.powerMetaLandscape}>
-                          +{item.xp} XP • {item.tag}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.powerChevronLandscape}>›</Text>
-                  </Pressable>
+                {challenges.map((c) => (
+                  <ChallengeCard key={c.id} challenge={c} />
                 ))}
               </View>
 
@@ -527,26 +751,11 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>HELP {petName.toUpperCase()}</Text>
+            <Text style={styles.sectionTitle}>CHALLENGES</Text>
 
             <View style={styles.powerList}>
-              {powerUps.map((item) => (
-                <Pressable key={item.id} style={styles.powerCard}>
-                  <View style={styles.powerLeft}>
-                    <View style={styles.powerIcon}>
-                      <Text style={styles.powerXp}>XP</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.powerTitle} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Text style={styles.powerMeta}>
-                        +{item.xp} XP • {item.tag}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.powerChevron}>›</Text>
-                </Pressable>
+              {challenges.map((c) => (
+                <ChallengeCard key={c.id} challenge={c} />
               ))}
             </View>
 
@@ -554,8 +763,16 @@ export default function HomeScreen() {
 
             <View style={styles.badgesRow}>
               {badges.map((b) => (
-                <View key={b.id} style={styles.badgeCard}>
-                  <BadgeIcon size={42} type={b.type} />
+  <View key={b.id} style={styles.badgeCard}>
+                  {b.type === 'sun' ? (
+                    <Image
+                      source={require('@/assets/images/Sun badge.png')}
+                      style={{ width: 42, height: 42 }}
+                      contentFit="contain"
+                    />
+                  ) : (
+                    <BadgeIcon size={42} type={b.type} />
+                  )}
                   <Text style={styles.badgeName} numberOfLines={1}>
                     {b.name}
                   </Text>
