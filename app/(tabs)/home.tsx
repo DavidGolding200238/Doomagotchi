@@ -21,7 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─────────────────────────────────────────────
-// PET ANIMATIONS
+// ASSETS
 // ─────────────────────────────────────────────
 const DUCK = require('@/assets/images/duckpet.gif');
 const DUCK_IDLE = require('@/assets/pets/Duck/Duck Idle.gif');
@@ -33,6 +33,10 @@ const SPINO_IDLE = require('@/assets/pets/Spinosaurus/Idle Spino.gif');
 const SPINO_WALK = require('@/assets/pets/Spinosaurus/Walking Spino.gif');
 const SPINO_SICK = require('@/assets/pets/Spinosaurus/Sick Spino.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
+
+const SUN_BADGE = require('@/assets/images/Sun badge.png');
+const FIRST_LIGHT_ICON = require('@/assets/images/First Light.png');
+const LOCK_ICON = require('@/assets/images/Lock icon.png');
 
 type AnimState = 'happy' | 'sick' | 'dead';
 
@@ -190,7 +194,6 @@ const INITIAL_CHALLENGES: Challenge[] = [
   },
 ];
 
-/** MOCK — high value so the pet is currently sick/dead for testing */
 const MOCK_SCROLL_MINUTES = 900;
 
 type PetData = {
@@ -236,60 +239,36 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
   const progress = Math.min(100, (challenge.current / challenge.target) * 100);
 
   return (
-    <View
-      style={[
-        styles.powerCard,
-        {
-          opacity: isLocked ? 0.45 : 1,
-          borderColor: isFailed ? '#FECACA' : isCompleted ? '#BBF7D0' : '#f0e6e0',
-          backgroundColor: isFailed ? '#FFF1F2' : isCompleted ? '#F0FDF4' : '#fff',
-        },
-      ]}
-    >
+    <View style={styles.powerCard}>
       <View style={styles.powerLeft}>
-        <View
-          style={[
-            styles.powerIcon,
-            {
-              backgroundColor: isLocked
-                ? '#e5e5e5'
-                : isFailed
-                ? '#FEE2E2'
-                : isCompleted
-                ? '#DCFCE7'
-                : '#FFF1F2',
-            },
-          ]}
-        >
+        <View style={styles.powerIcon}>
           {isLocked ? (
-            <Ionicons name="lock-closed" size={16} color="#9ca3af" />
+            <Image
+              source={LOCK_ICON}
+              style={{ width: 28, height: 28 }}
+              contentFit="contain"
+            />
           ) : isCompleted ? (
-            <Ionicons name="checkmark" size={18} color="#16a34a" />
+            <Ionicons name="checkmark" size={18} color="#fff" />
           ) : isFailed ? (
-            <Ionicons name="refresh" size={16} color="#dc2626" />
+            <Ionicons name="refresh" size={16} color="#fff" />
+          ) : challenge.id === '1' ? (
+            <Image
+              source={FIRST_LIGHT_ICON}
+              style={{ width: 28, height: 28 }}
+              contentFit="contain"
+            />
           ) : (
             <Text style={styles.powerXp}>{challenge.xp}</Text>
           )}
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text
-            style={[
-              styles.powerTitle,
-              { color: isLocked ? '#9ca3af' : '#1a1a1a' },
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={styles.powerTitle} numberOfLines={1}>
             {challenge.name}
           </Text>
 
-          <Text
-            style={[
-              styles.powerMeta,
-              { color: isLocked ? '#c4b5a5' : '#8a7a70' },
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={styles.powerMeta} numberOfLines={1}>
             {isLocked
               ? 'Locked'
               : isFailed
@@ -299,7 +278,6 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
               : `${challenge.current}/${challenge.target} • ${challenge.goal}`}
           </Text>
 
-          {/* Progress bar only when in progress */}
           {isInProgress && challenge.target > 1 && (
             <View
               style={{
@@ -323,11 +301,9 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
         </View>
       </View>
 
-      {!isLocked && !isCompleted && (
-        <Text style={[styles.powerChevron, { color: isFailed ? '#dc2626' : '#B83F3F' }]}>
-          {isFailed ? '↺' : '›'}
-        </Text>
-      )}
+      <Text style={styles.powerChevron}>
+        {isFailed ? '↺' : '›'}
+      </Text>
     </View>
   );
 }
@@ -343,6 +319,7 @@ export default function HomeScreen() {
   const [animFrame, setAnimFrame] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [challengesExpanded, setChallengesExpanded] = useState(false);
 
   const [health, setHealth] = useState(100);
   const [happiness, setHappiness] = useState(100);
@@ -354,12 +331,39 @@ export default function HomeScreen() {
   const level = 12;
   const isHealthy = scrollMinutes <= scrollLimit;
 
+  // Badge unlock thresholds: 1 / 2 / 3 / 4 completed challenges
+  const completedCount = challenges.filter((c) => c.status === 'completed').length;
+
   const badges = [
-    { id: '1', name: 'Sun Gazer', type: 'sun' as const },
-    { id: '2', name: 'Focus King', type: 'focus' as const },
-    { id: '3', name: 'Deep Sleeper', type: 'sleep' as const },
-    { id: '4', name: 'Bookworm', type: 'book' as const },
+    {
+      id: '1',
+      name: 'Sun Gazer',
+      type: 'sun' as const,
+      unlocked: completedCount >= 1,
+    },
+    {
+      id: '2',
+      name: 'Focus King',
+      type: 'focus' as const,
+      unlocked: completedCount >= 2,
+    },
+    {
+      id: '3',
+      name: 'Deep Sleeper',
+      type: 'sleep' as const,
+      unlocked: completedCount >= 3,
+    },
+    {
+      id: '4',
+      name: 'Bookworm',
+      type: 'book' as const,
+      unlocked: completedCount >= 4,
+    },
   ];
+
+  const visibleChallenges = challengesExpanded
+    ? challenges
+    : challenges.slice(0, 4);
 
   useEffect(() => {
     async function loadPetAndHealth() {
@@ -540,6 +544,88 @@ export default function HomeScreen() {
     </Modal>
   );
 
+  const ChallengesSection = ({ landscape = false }: { landscape?: boolean }) => (
+    <>
+      <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>
+        CHALLENGES
+      </Text>
+
+      <View style={landscape ? styles.powerListLandscape : styles.powerList}>
+        {visibleChallenges.map((c) => (
+          <ChallengeCard key={c.id} challenge={c} />
+        ))}
+      </View>
+
+      {challenges.length > 4 && (
+        <Pressable
+          onPress={() => setChallengesExpanded((prev) => !prev)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 10,
+            marginBottom: landscape ? 22 : 28,
+          }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#B83F3F' }}>
+            {challengesExpanded ? 'Show less' : `Show all ${challenges.length} challenges`}
+          </Text>
+          <Ionicons
+            name={challengesExpanded ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color="#B83F3F"
+          />
+        </Pressable>
+      )}
+    </>
+  );
+
+  const BadgesSection = ({ landscape = false }: { landscape?: boolean }) => (
+    <>
+      <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>
+        BADGES
+      </Text>
+
+      <View style={landscape ? styles.badgesRowLandscape : styles.badgesRow}>
+        {badges.map((b) => (
+          <View
+            key={b.id}
+            style={landscape ? styles.badgeCardLandscape : styles.badgeCard}
+          >
+            {!b.unlocked ? (
+              <Image
+                source={LOCK_ICON}
+                style={{
+                  width: landscape ? 34 : 42,
+                  height: landscape ? 34 : 42,
+                }}
+                contentFit="contain"
+              />
+            ) : b.type === 'sun' ? (
+              <Image
+                source={SUN_BADGE}
+                style={{
+                  width: landscape ? 34 : 42,
+                  height: landscape ? 34 : 42,
+                }}
+                contentFit="contain"
+              />
+            ) : (
+              <BadgeIcon size={landscape ? 34 : 42} type={b.type} />
+            )}
+            <Text
+              style={landscape ? styles.badgeNameLandscape : styles.badgeName}
+              numberOfLines={1}
+            >
+              {b.name}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+
   if (loading || loggingOut) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -641,26 +727,8 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <Text style={styles.sectionTitleLandscape}>CHALLENGES</Text>
-
-              <View style={styles.powerListLandscape}>
-                {challenges.map((c) => (
-                  <ChallengeCard key={c.id} challenge={c} />
-                ))}
-              </View>
-
-              <Text style={styles.sectionTitleLandscape}>LATEST BADGES</Text>
-
-              <View style={styles.badgesRowLandscape}>
-                {badges.map((b) => (
-                  <View key={b.id} style={styles.badgeCardLandscape}>
-                    <BadgeIcon size={34} type={b.type} />
-                    <Text style={styles.badgeNameLandscape} numberOfLines={1}>
-                      {b.name}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <ChallengesSection landscape />
+              <BadgesSection landscape />
             </ScrollView>
           </View>
         </View>
@@ -751,34 +819,8 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>CHALLENGES</Text>
-
-            <View style={styles.powerList}>
-              {challenges.map((c) => (
-                <ChallengeCard key={c.id} challenge={c} />
-              ))}
-            </View>
-
-            <Text style={styles.sectionTitle}>LATEST BADGES</Text>
-
-            <View style={styles.badgesRow}>
-              {badges.map((b) => (
-  <View key={b.id} style={styles.badgeCard}>
-                  {b.type === 'sun' ? (
-                    <Image
-                      source={require('@/assets/images/Sun badge.png')}
-                      style={{ width: 42, height: 42 }}
-                      contentFit="contain"
-                    />
-                  ) : (
-                    <BadgeIcon size={42} type={b.type} />
-                  )}
-                  <Text style={styles.badgeName} numberOfLines={1}>
-                    {b.name}
-                  </Text>
-                </View>
-              ))}
-            </View>
+            <ChallengesSection />
+            <BadgesSection />
           </ScrollView>
         </View>
       </View>
