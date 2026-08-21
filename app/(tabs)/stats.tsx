@@ -1,10 +1,10 @@
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/services/firebase';
 import {
-  checkAndRequestUsagePermission,
   getPetScrollMinutes,
   getTopEnemyApp,
   getUTCDateKey,
+  hasUsagePermission
 } from '@/services/usage';
 import { styles } from '@/styles/stats.styles';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,11 +44,11 @@ function getLast7Days(): { key: string; label: string }[] {
 
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - i);
+    d.setUTCDate(d.getUTCDate() - i);
+
     result.push({
-      key: toDateKey(d),
-      label: labels[d.getDay()],
+      key: getUTCDateKey(d), // same key style as Home / Firebase
+      label: labels[d.getUTCDay()],
     });
   }
   return result;
@@ -59,12 +59,10 @@ function calculateStreak(history: Record<string, number>, limit: number): number
   const d = new Date();
   d.setHours(0, 0, 0, 0);
 
-  // Start from today and walk backwards
   while (true) {
     const key = toDateKey(d);
     const minutes = history[key];
 
-    // No data for this day → streak stops
     if (minutes === undefined) break;
 
     if (minutes <= limit) {
@@ -106,7 +104,6 @@ export default function StatsScreen() {
     { day: 'Sun', value: 0 },
   ]);
 
-  // Activity matrix for the current month (index 0 = day 1)
   const [activity, setActivity] = useState<number[]>(
     Array.from({ length: 31 }, () => 0)
   );
@@ -118,11 +115,9 @@ export default function StatsScreen() {
     }
 
     try {
-      // Graveyard count
       const graveSnap = await getDocs(collection(db, 'users', user.uid, 'graveyard'));
       setGraveyardCount(graveSnap.size);
 
-      // Current pet + usage
       const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
       const userData = userDoc.exists() ? userDoc.data() : {};
@@ -137,7 +132,8 @@ export default function StatsScreen() {
         limit = pet.scrollLimit ?? 45;
         hp = pet.health ?? 100;
 
-        const granted = await checkAndRequestUsagePermission();
+        // Only CHECK — never auto-request
+        const granted = await hasUsagePermission();
         if (granted) {
           const result = await getPetScrollMinutes(
             pet.usageBaselineMinutes ?? 0,
@@ -154,14 +150,12 @@ export default function StatsScreen() {
         }
       }
 
-      // ── Persist today's real minutes into history ──
       const todayKey = getUTCDateKey();
       history = {
         ...history,
         [todayKey]: minutes,
       };
 
-      // Keep history from growing forever (keep last ~90 days)
       const sortedKeys = Object.keys(history).sort();
       if (sortedKeys.length > 90) {
         const keep = sortedKeys.slice(-90);
@@ -172,7 +166,6 @@ export default function StatsScreen() {
         history = trimmed;
       }
 
-      // Write history back (merge so we don't wipe other fields)
       await setDoc(
         userRef,
         { usageHistory: history },
@@ -183,17 +176,14 @@ export default function StatsScreen() {
       setScrollLimit(limit);
       setHealth(hp);
 
-      // ── Real streak ──
       setStreak(calculateStreak(history, limit));
 
-      // ── Weekly data (last 7 days) ──
       const last7 = getLast7Days();
       const weekValues = last7.map((d) => ({
         day: d.label,
         value: history[d.key] ?? 0,
       }));
 
-      // Re-order to Mon → Sun to match the original UI expectation
       const monFirstOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const orderedWeek = monFirstOrder.map((label) => {
         const found = weekValues.find((d) => d.day === label);
@@ -203,10 +193,9 @@ export default function StatsScreen() {
       setWeeklyData(orderedWeek);
       setWeeklyTotal(orderedWeek.reduce((sum, d) => sum + d.value, 0));
 
-      // ── Activity matrix for current month ──
       const now = new Date();
       const year = now.getFullYear();
-      const monthIndex = now.getMonth(); // 0-based
+      const monthIndex = now.getMonth();
       const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
 
       const monthActivity: number[] = [];
@@ -245,8 +234,8 @@ export default function StatsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={{ flex: 1, backgroundColor: '#FFF9F5', justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#B83F3F" />
         </View>
       </SafeAreaView>
@@ -257,151 +246,135 @@ export default function StatsScreen() {
   if (isLandscape) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.landscapeRow}>
-          <View style={styles.landscapeLeft}>
-            <View style={styles.landscapeHeader}>
-              <Text style={styles.landscapeHeaderTitle}>LOGS & STATS</Text>
-              <Ionicons name="notifications-outline" size={20} color="#1a1a1a" />
-            </View>
-
-            <View style={styles.landscapeLevelCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.landscapeLevelTitle}>LEVEL 12</Text>
-                <Text style={styles.landscapeLevelSub}>Doom-Resistant Warrior</Text>
-                <View style={styles.landscapePillsRow}>
-                  <View style={styles.streakPillLandscape}>
-                    <Text style={styles.streakPillTextLandscape}>
-                      TODAY: {todayMinutes}m
-                    </Text>
-                  </View>
-                  <View style={styles.hpPillLandscape}>
-                    <Text style={styles.hpPillTextLandscape}>HP: {health}%</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.landscapeImageBox}>
-                <Ionicons name="image-outline" size={24} color="#C4B5A8" />
-              </View>
-            </View>
-
-            <View style={styles.landscapeStatsGrid}>
-              {statCards.map((item) => (
-                <View key={item.label} style={styles.landscapeStatCard}>
-                  <View style={styles.landscapeStatLabelRow}>
-                    <Ionicons name={item.icon as any} size={14} color="#999" />
-                    <Text style={styles.landscapeStatLabel}>{item.label}</Text>
-                  </View>
-                  <Text style={styles.landscapeStatValue}>{item.value}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <ScrollView
-            style={styles.landscapeRightScroll}
-            contentContainerStyle={styles.landscapeRightContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.landscapeCard}>
-              <View style={styles.landscapeCardHeader}>
-                <View style={styles.landscapeCardTitleRow}>
-                  <Ionicons name="calendar-outline" size={16} color="#1a1a1a" />
-                  <Text style={styles.landscapeCardTitle}>ACTIVITY MATRIX</Text>
-                </View>
-                <View style={styles.landscapeMonthRow}>
-                  <Text style={styles.landscapeMonthText}>{month}</Text>
-                </View>
+        <View style={{ flex: 1, backgroundColor: '#FFF9F5' }}>
+          <View style={styles.landscapeRow}>
+            <View style={styles.landscapeLeft}>
+              <View style={styles.landscapeHeader}>
+                <Text style={styles.landscapeHeaderTitle}>LOGS & STATS</Text>
+                <Ionicons name="notifications-outline" size={20} color="#1a1a1a" />
               </View>
 
-              <View style={styles.dayHeaders}>
-                {DAYS.map((d, i) => (
-                  <View key={i} style={styles.dayHeaderCell}>
-                    <Text style={styles.dayHeaderText}>{d}</Text>
+              
+
+              <View style={styles.landscapeStatsGrid}>
+                {statCards.map((item) => (
+                  <View key={item.label} style={styles.landscapeStatCard}>
+                    <View style={styles.landscapeStatLabelRow}>
+                      <Ionicons name={item.icon as any} size={14} color="#999" />
+                      <Text style={styles.landscapeStatLabel}>{item.label}</Text>
+                    </View>
+                    <Text style={styles.landscapeStatValue}>{item.value}</Text>
                   </View>
                 ))}
               </View>
+            </View>
 
-              <View style={styles.calendarGrid}>
-                {activity.map((level, i) => (
-                  <View key={i} style={styles.calendarCell}>
-                    <View
-                      style={[
-                        styles.calendarCellInner,
-                        {
-                          backgroundColor: INTENSITY_COLORS[level],
-                          borderColor: level === 0 ? '#f0e6e0' : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Text
+            <ScrollView
+              style={styles.landscapeRightScroll}
+              contentContainerStyle={styles.landscapeRightContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.landscapeCard}>
+                <View style={styles.landscapeCardHeader}>
+                  <View style={styles.landscapeCardTitleRow}>
+                    <Ionicons name="calendar-outline" size={16} color="#1a1a1a" />
+                    <Text style={styles.landscapeCardTitle}>ACTIVITY</Text>
+                  </View>
+                  <View style={styles.landscapeMonthRow}>
+                    <Text style={styles.landscapeMonthText}>{month}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.dayHeaders}>
+                  {DAYS.map((d, i) => (
+                    <View key={i} style={styles.dayHeaderCell}>
+                      <Text style={styles.dayHeaderText}>{d}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.calendarGrid}>
+                  {activity.map((level, i) => (
+                    <View key={i} style={styles.calendarCell}>
+                      <View
                         style={[
-                          styles.calendarDayText,
-                          { color: level >= 3 ? '#fff' : '#1a1a1a' },
+                          styles.calendarCellInner,
+                          {
+                            backgroundColor: INTENSITY_COLORS[level],
+                            borderColor: level === 0 ? '#f0e6e0' : 'transparent',
+                          },
                         ]}
                       >
-                        {i + 1}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.calendarDayText,
+                            { color: level >= 3 ? '#fff' : '#1a1a1a' },
+                          ]}
+                        >
+                          {i + 1}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.legendRow}>
-                {INTENSITY_LABELS.map((label, i) => (
-                  <View key={label} style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: INTENSITY_COLORS[i] }]} />
-                    <Text style={styles.legendText}>{label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.landscapeCard}>
-              <View style={styles.intensityHeader}>
-                <View style={styles.landscapeCardTitleRow}>
-                  <Ionicons name="pulse-outline" size={16} color="#1a1a1a" />
-                  <Text style={styles.landscapeCardTitle}>INTENSITY GRAPH</Text>
+                  ))}
                 </View>
-                <View style={styles.healthyPill}>
-                  <Text style={styles.healthyPillText}>
-                    {isHealthyWeek ? 'HEALTHY DAY' : 'OVER LIMIT'}
+
+                <View style={styles.legendRow}>
+                  {INTENSITY_LABELS.map((label, i) => (
+                    <View key={label} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: INTENSITY_COLORS[i] }]} />
+                      <Text style={styles.legendText}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.landscapeCard}>
+                <View style={styles.intensityHeader}>
+                  <View style={styles.landscapeCardTitleRow}>
+                    <Ionicons name="pulse-outline" size={16} color="#1a1a1a" />
+                    <Text style={styles.landscapeCardTitle}>INTENSITY GRAPH</Text>
+                  </View>
+                  <View style={styles.healthyPill}>
+                    <Text style={styles.healthyPillText}>
+                      {isHealthyWeek ? 'HEALTHY DAY' : 'OVER LIMIT'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.intensitySub}>Minutes spent in distraction apps</Text>
+
+                <View style={styles.barChart}>
+                  {weeklyData.map((d) => (
+                    <View key={d.day} style={styles.barCol}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            height: `${(d.value / maxBar) * 100}%`,
+                            backgroundColor: d.value > scrollLimit ? '#C94C4C' : '#A8A29E',
+                          },
+                        ]}
+                      />
+                      <Text style={styles.barLabel}>{d.day}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <Pressable
+                style={styles.previousLosses}
+                onPress={() => router.push('/(tabs)/graveyard')}
+              >
+                <View style={styles.previousLossesLeft}>
+                  <Ionicons name="skull-outline" size={20} color="#999" />
+                  <Text style={styles.previousLossesText}>
+                    PREVIOUS LOSSES: {graveyardCount} PET{graveyardCount === 1 ? '' : 'S'}
                   </Text>
                 </View>
-              </View>
-
-              <Text style={styles.intensitySub}>Minutes spent in distraction apps</Text>
-
-              <View style={styles.barChart}>
-                {weeklyData.map((d) => (
-                  <View key={d.day} style={styles.barCol}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          height: `${(d.value / maxBar) * 100}%`,
-                          backgroundColor: d.value > scrollLimit ? '#C94C4C' : '#A8A29E',
-                        },
-                      ]}
-                    />
-                    <Text style={styles.barLabel}>{d.day}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <Pressable
-              style={styles.previousLosses}
-              onPress={() => router.push('/(tabs)/graveyard')}
-            >
-              <View style={styles.previousLossesLeft}>
-                <Ionicons name="skull-outline" size={20} color="#999" />
-                <Text style={styles.previousLossesText}>
-                  PREVIOUS LOSSES: {graveyardCount} PET{graveyardCount === 1 ? '' : 'S'}
-                </Text>
-              </View>
-              <Text style={styles.previousLossesLink}>VIEW GRAVEYARD ›</Text>
-            </Pressable>
-          </ScrollView>
+                <Text style={styles.previousLossesLink}>VIEW GRAVEYARD ›</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -410,144 +383,130 @@ export default function StatsScreen() {
   // ==================== PORTRAIT ====================
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.portraitScroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.portraitHeader}>
-          <Text style={styles.portraitHeaderTitle}>LOGS & STATS</Text>
-          <Ionicons name="notifications-outline" size={22} color="#1a1a1a" />
-        </View>
+      <View style={{ flex: 1, backgroundColor: '#FFF9F5' }}>
+        <ScrollView contentContainerStyle={styles.portraitScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.portraitHeader}>
+            <Text style={styles.portraitHeaderTitle}>LOGS & STATS</Text>
+            <Ionicons name="notifications-outline" size={22} color="#1a1a1a" />
+          </View>
 
-        <View style={styles.portraitLevelCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.portraitLevelTitle}>LEVEL 12</Text>
-            <Text style={styles.portraitLevelSub}>Doom-Resistant Warrior</Text>
-            <View style={styles.portraitPillsRow}>
-              <View style={styles.streakPill}>
-                <Text style={styles.streakPillText}>TODAY: {todayMinutes}m</Text>
+        
+
+          <View style={styles.portraitCard}>
+            <View style={styles.portraitCardHeader}>
+              <View style={styles.portraitCardTitleRow}>
+                <Ionicons name="calendar-outline" size={17} color="#1a1a1a" />
+                <Text style={styles.portraitCardTitle}>ACTIVITY</Text>
               </View>
-              <View style={styles.hpPill}>
-                <Text style={styles.hpPillText}>HP: {health}%</Text>
+              <View style={styles.portraitMonthRow}>
+                <Text style={styles.portraitMonthText}>{month}</Text>
               </View>
             </View>
-          </View>
-          <View style={styles.portraitImageBox}>
-            <Ionicons name="image-outline" size={28} color="#C4B5A8" />
-          </View>
-        </View>
 
-        <View style={styles.portraitCard}>
-          <View style={styles.portraitCardHeader}>
-            <View style={styles.portraitCardTitleRow}>
-              <Ionicons name="calendar-outline" size={17} color="#1a1a1a" />
-              <Text style={styles.portraitCardTitle}>ACTIVITY MATRIX</Text>
+            <View style={styles.dayHeaders}>
+              {DAYS.map((d, i) => (
+                <View key={i} style={styles.dayHeaderCell}>
+                  <Text style={styles.portraitDayHeaderText}>{d}</Text>
+                </View>
+              ))}
             </View>
-            <View style={styles.portraitMonthRow}>
-              <Text style={styles.portraitMonthText}>{month}</Text>
-            </View>
-          </View>
 
-          <View style={styles.dayHeaders}>
-            {DAYS.map((d, i) => (
-              <View key={i} style={styles.dayHeaderCell}>
-                <Text style={styles.portraitDayHeaderText}>{d}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.calendarGrid}>
-            {activity.map((level, i) => (
-              <View key={i} style={styles.portraitCalendarCell}>
-                <View
-                  style={[
-                    styles.portraitCalendarCellInner,
-                    {
-                      backgroundColor: INTENSITY_COLORS[level],
-                      borderColor: level === 0 ? '#f0e6e0' : 'transparent',
-                    },
-                  ]}
-                >
-                  <Text
+            <View style={styles.calendarGrid}>
+              {activity.map((level, i) => (
+                <View key={i} style={styles.portraitCalendarCell}>
+                  <View
                     style={[
-                      styles.portraitCalendarDayText,
-                      { color: level >= 3 ? '#fff' : '#1a1a1a' },
+                      styles.portraitCalendarCellInner,
+                      {
+                        backgroundColor: INTENSITY_COLORS[level],
+                        borderColor: level === 0 ? '#f0e6e0' : 'transparent',
+                      },
                     ]}
                   >
-                    {i + 1}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.portraitCalendarDayText,
+                        { color: level >= 3 ? '#fff' : '#1a1a1a' },
+                      ]}
+                    >
+                      {i + 1}
+                    </Text>
+                  </View>
                 </View>
+              ))}
+            </View>
+
+            <View style={styles.portraitLegendRow}>
+              {INTENSITY_LABELS.map((label, i) => (
+                <View key={label} style={styles.portraitLegendItem}>
+                  <View
+                    style={[styles.portraitLegendDot, { backgroundColor: INTENSITY_COLORS[i] }]}
+                  />
+                  <Text style={styles.portraitLegendText}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.portraitStatsGrid}>
+            {statCards.map((item) => (
+              <View key={item.label} style={styles.portraitStatCard}>
+                <View style={styles.portraitStatLabelRow}>
+                  <Ionicons name={item.icon as any} size={15} color="#999" />
+                  <Text style={styles.portraitStatLabel}>{item.label}</Text>
+                </View>
+                <Text style={styles.portraitStatValue}>{item.value}</Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.portraitLegendRow}>
-            {INTENSITY_LABELS.map((label, i) => (
-              <View key={label} style={styles.portraitLegendItem}>
-                <View
-                  style={[styles.portraitLegendDot, { backgroundColor: INTENSITY_COLORS[i] }]}
-                />
-                <Text style={styles.portraitLegendText}>{label}</Text>
+          <View style={styles.portraitCard}>
+            <View style={styles.portraitIntensityHeader}>
+              <View style={styles.portraitCardTitleRow}>
+                <Ionicons name="pulse-outline" size={17} color="#1a1a1a" />
+                <Text style={styles.portraitCardTitle}>INTENSITY GRAPH</Text>
               </View>
-            ))}
+              <View style={styles.portraitHealthyPill}>
+                <Text style={styles.portraitHealthyPillText}>
+                  {isHealthyWeek ? 'HEALTHY DAY' : 'OVER LIMIT'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.portraitIntensitySub}>Minutes spent in distraction apps</Text>
+
+            <View style={styles.portraitBarChart}>
+              {weeklyData.map((d) => (
+                <View key={d.day} style={styles.barCol}>
+                  <View
+                    style={[
+                      styles.portraitBarFill,
+                      {
+                        height: `${(d.value / maxBar) * 100}%`,
+                        backgroundColor: d.value > scrollLimit ? '#C94C4C' : '#A8A29E',
+                      },
+                    ]}
+                  />
+                  <Text style={styles.portraitBarLabel}>{d.day}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.portraitStatsGrid}>
-          {statCards.map((item) => (
-            <View key={item.label} style={styles.portraitStatCard}>
-              <View style={styles.portraitStatLabelRow}>
-                <Ionicons name={item.icon as any} size={15} color="#999" />
-                <Text style={styles.portraitStatLabel}>{item.label}</Text>
-              </View>
-              <Text style={styles.portraitStatValue}>{item.value}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.portraitCard}>
-          <View style={styles.portraitIntensityHeader}>
-            <View style={styles.portraitCardTitleRow}>
-              <Ionicons name="pulse-outline" size={17} color="#1a1a1a" />
-              <Text style={styles.portraitCardTitle}>INTENSITY GRAPH</Text>
-            </View>
-            <View style={styles.portraitHealthyPill}>
-              <Text style={styles.portraitHealthyPillText}>
-                {isHealthyWeek ? 'HEALTHY DAY' : 'OVER LIMIT'}
+          <Pressable
+            style={styles.previousLosses}
+            onPress={() => router.push('/(tabs)/graveyard')}
+          >
+            <View style={styles.previousLossesLeft}>
+              <Ionicons name="skull-outline" size={20} color="#999" />
+              <Text style={styles.previousLossesText}>
+                PREVIOUS LOSSES: {graveyardCount} PET{graveyardCount === 1 ? '' : 'S'}
               </Text>
             </View>
-          </View>
-
-          <Text style={styles.portraitIntensitySub}>Minutes spent in distraction apps</Text>
-
-          <View style={styles.portraitBarChart}>
-            {weeklyData.map((d) => (
-              <View key={d.day} style={styles.barCol}>
-                <View
-                  style={[
-                    styles.portraitBarFill,
-                    {
-                      height: `${(d.value / maxBar) * 100}%`,
-                      backgroundColor: d.value > scrollLimit ? '#C94C4C' : '#A8A29E',
-                    },
-                  ]}
-                />
-                <Text style={styles.portraitBarLabel}>{d.day}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <Pressable
-          style={styles.previousLosses}
-          onPress={() => router.push('/(tabs)/graveyard')}
-        >
-          <View style={styles.previousLossesLeft}>
-            <Ionicons name="skull-outline" size={20} color="#999" />
-            <Text style={styles.previousLossesText}>
-              PREVIOUS LOSSES: {graveyardCount} PET{graveyardCount === 1 ? '' : 'S'}
-            </Text>
-          </View>
-          <Text style={styles.previousLossesLink}>VIEW GRAVEYARD ›</Text>
-        </Pressable>
-      </ScrollView>
+            <Text style={styles.previousLossesLink}>VIEW GRAVEYARD ›</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

@@ -1,15 +1,22 @@
 import * as UsageStats from 'expo-android-usagestats';
 
-const SOCIAL_PACKAGES = [
+export const SOCIAL_PACKAGES = [
   'com.instagram.android',
-  'com.zhiliaoapp.musically', // TikTok
-  'com.ss.android.ugc.trill', // TikTok (some regions)
+  'com.zhiliaoapp.musically',
+  'com.ss.android.ugc.trill',
   'com.twitter.android',
   'com.google.android.youtube',
   'com.facebook.katana',
   'com.facebook.orca',
   'com.reddit.frontpage',
   'com.snapchat.android',
+];
+
+/** Instagram + TikTok only (No Reels Night) */
+export const REELS_PACKAGES = [
+  'com.instagram.android',
+  'com.zhiliaoapp.musically',
+  'com.ss.android.ugc.trill',
 ];
 
 const APP_NAMES: Record<string, string> = {
@@ -24,33 +31,61 @@ const APP_NAMES: Record<string, string> = {
   'com.snapchat.android': 'Snapchat',
 };
 
-/** Always returns YYYY-MM-DD in UTC to avoid timezone edge cases */
+/** UTC key for usageHistory (graphs) */
 export function getUTCDateKey(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10);
 }
 
-export async function checkAndRequestUsagePermission(): Promise<boolean> {
-  const hasPermission = await UsageStats.hasUsageStatsPermission();
-
-  if (!hasPermission) {
-    await UsageStats.requestUsageStatsPermission();
-    return false;
-  }
-
-  return true;
+/** Local calendar key YYYY-MM-DD */
+export function getLocalDateKey(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-/** Raw total minutes spent in social apps today (from midnight UTC) */
-export async function getRawTodaySocialMinutes(): Promise<number> {
-  const now = Date.now();
-  const startOfDay = new Date();
-  startOfDay.setUTCHours(0, 0, 0, 0);
+export function startOfLocalDay(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
-  const stats = await UsageStats.getUsageStats(startOfDay.getTime(), now);
+export function endOfLocalDay(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
 
+export async function hasUsagePermission(): Promise<boolean> {
+  try {
+    const has = await UsageStats.hasUsageStatsPermission();
+    if (has) return true;
+
+    const now = Date.now();
+    await UsageStats.getUsageStats(now - 60_000, now);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function requestUsagePermission(): Promise<void> {
+  await UsageStats.requestUsageStatsPermission();
+}
+
+/** Minutes for package list between two timestamps */
+export async function getMinutesInRange(
+  startMs: number,
+  endMs: number,
+  packages: string[] = SOCIAL_PACKAGES
+): Promise<number> {
+  if (endMs <= startMs) return 0;
+
+  const stats = await UsageStats.getUsageStats(startMs, endMs);
   let totalMs = 0;
+
   for (const app of stats) {
-    if (SOCIAL_PACKAGES.includes(app.packageName)) {
+    if (packages.includes(app.packageName)) {
       totalMs += app.totalTimeInForeground || 0;
     }
   }
@@ -58,12 +93,14 @@ export async function getRawTodaySocialMinutes(): Promise<number> {
   return Math.round(totalMs / 1000 / 60);
 }
 
-/**
- * Returns the minutes that should count for the pet today.
- *
- * - On the day the pet was created → baseline protection
- * - Every day after that → full usage from midnight UTC counts
- */
+/** Raw total minutes spent in social apps today (UTC midnight — used for history/graphs) */
+export async function getRawTodaySocialMinutes(): Promise<number> {
+  const now = Date.now();
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  return getMinutesInRange(startOfDay.getTime(), now, SOCIAL_PACKAGES);
+}
+
 export async function getPetScrollMinutes(
   baselineMinutes: number,
   baselineDate: string,
@@ -75,7 +112,6 @@ export async function getPetScrollMinutes(
   const createdDate = petCreatedAt ? petCreatedAt.slice(0, 10) : null;
   const isCreationDay = createdDate === today;
 
-  // ── First day the pet exists → keep the original protection ──
   if (isCreationDay) {
     if (baselineDate !== today) {
       return {
@@ -92,7 +128,6 @@ export async function getPetScrollMinutes(
     };
   }
 
-  // ── Any day after creation → full usage counts ──
   return {
     minutes: raw,
     newBaseline: 0,
@@ -100,7 +135,6 @@ export async function getPetScrollMinutes(
   };
 }
 
-/** Returns the name of the social app used the most today */
 export async function getTopEnemyApp(): Promise<string> {
   const now = Date.now();
   const startOfDay = new Date();

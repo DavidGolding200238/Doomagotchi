@@ -1,11 +1,20 @@
 import { BadgeIcon } from '@/components/BadgeIcon';
 import { useAuth } from '@/context/AuthContext';
+import {
+  badgeUnlockCount,
+  buildChallengeViews,
+  emptyChallengeState,
+  evaluateChallenges,
+  type ChallengeState,
+  type ChallengeView,
+} from '@/services/challenges';
 import { db } from '@/services/firebase';
 import { applyHealthTick, type PetHealthState } from '@/services/health';
 import {
-  checkAndRequestUsagePermission,
   getPetScrollMinutes,
   getUTCDateKey,
+  hasUsagePermission,
+  requestUsagePermission,
 } from '@/services/usage';
 import { styles } from '@/styles/home.styles';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +34,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-
 // ─────────────────────────────────────────────
 // ASSETS
 // ─────────────────────────────────────────────
@@ -39,7 +47,7 @@ const SPINO_WALK = require('@/assets/pets/Spinosaurus/Walking Spino.gif');
 const SPINO_SICK = require('@/assets/pets/Spinosaurus/Sick Spino.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
 
-const PANDA_IDLE= require('@/assets/pets/Panda/Panda Idle.gif');
+const PANDA_IDLE = require('@/assets/pets/Panda/Panda Idle.gif');
 const PANDA_EATING = require('@/assets/pets/Panda/Panda Eating.gif');
 const PANDA_SICK = require('@/assets/pets/Panda/Sick Panda.gif');
 const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
@@ -74,136 +82,6 @@ function getAnimState(health: number): AnimState {
   return 'happy';
 }
 
-// ─────────────────────────────────────────────
-// CHALLENGES
-// ─────────────────────────────────────────────
-type ChallengeStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'failed';
-
-type Challenge = {
-  id: string;
-  name: string;
-  description: string;
-  type: 'daily' | 'streak' | 'milestone';
-  goal: string;
-  current: number;
-  target: number;
-  status: ChallengeStatus;
-  xp: number;
-};
-
-const INITIAL_CHALLENGES: Challenge[] = [
-  {
-    id: '1',
-    name: 'First Light',
-    description: 'Stay under your scroll limit for 1 full day',
-    type: 'daily',
-    goal: '1 healthy day',
-    current: 0,
-    target: 1,
-    status: 'available',
-    xp: 40,
-  },
-  {
-    id: '2',
-    name: 'No Reels Night',
-    description: 'Zero Instagram / TikTok / Reels between 21:00 – 07:00',
-    type: 'daily',
-    goal: 'Clean night',
-    current: 0,
-    target: 1,
-    status: 'locked',
-    xp: 50,
-  },
-  {
-    id: '3',
-    name: 'Two-Day Streak',
-    description: 'Keep your pet healthy for 2 consecutive days',
-    type: 'streak',
-    goal: '2 day streak',
-    current: 0,
-    target: 2,
-    status: 'locked',
-    xp: 80,
-  },
-  {
-    id: '4',
-    name: 'Scroll Fast',
-    description: 'Stay under 50% of your daily limit',
-    type: 'daily',
-    goal: 'Under 50%',
-    current: 0,
-    target: 1,
-    status: 'locked',
-    xp: 60,
-  },
-  {
-    id: '5',
-    name: 'Three-Day Streak',
-    description: '3 consecutive healthy days',
-    type: 'streak',
-    goal: '3 day streak',
-    current: 0,
-    target: 3,
-    status: 'locked',
-    xp: 120,
-  },
-  {
-    id: '6',
-    name: 'Morning Mute',
-    description: 'No social apps before 10:00',
-    type: 'daily',
-    goal: 'Clean morning',
-    current: 0,
-    target: 1,
-    status: 'locked',
-    xp: 45,
-  },
-  {
-    id: '7',
-    name: 'Five-Day Guardian',
-    description: '5 consecutive days under limit',
-    type: 'streak',
-    goal: '5 day streak',
-    current: 0,
-    target: 5,
-    status: 'locked',
-    xp: 180,
-  },
-  {
-    id: '8',
-    name: 'Weekend Warrior',
-    description: 'Both Saturday and Sunday under limit',
-    type: 'streak',
-    goal: 'Full weekend',
-    current: 0,
-    target: 2,
-    status: 'locked',
-    xp: 100,
-  },
-  {
-    id: '9',
-    name: 'Week of Focus',
-    description: '7 consecutive healthy days',
-    type: 'streak',
-    goal: '7 day streak',
-    current: 0,
-    target: 7,
-    status: 'locked',
-    xp: 250,
-  },
-  {
-    id: '10',
-    name: 'Pet Protector',
-    description: 'Keep the same pet alive for 14 days total',
-    type: 'milestone',
-    goal: '14 days alive',
-    current: 0,
-    target: 14,
-    status: 'locked',
-    xp: 400,
-  },
-];
-
 type PetData = {
   id: string;
   type: string;
@@ -218,6 +96,7 @@ type PetData = {
   lastScrollDate?: string;
   usageBaselineMinutes?: number;
   usageBaselineDate?: string;
+  challenges?: ChallengeState;
 };
 
 function PixelBar({ value, color }: { value: number; color: string }) {
@@ -240,23 +119,32 @@ function PixelBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-function ChallengeCard({ challenge }: { challenge: Challenge }) {
+function ChallengeCard({ challenge }: { challenge: ChallengeView }) {
   const isLocked = challenge.status === 'locked';
-  const isFailed = challenge.status === 'failed';
   const isCompleted = challenge.status === 'completed';
-  const isInProgress = challenge.status === 'in_progress' || challenge.status === 'available';
-  const progress = Math.min(100, (challenge.current / challenge.target) * 100);
 
   return (
-    <View style={styles.powerCard}>
+    <View
+      style={[
+        styles.powerCard,
+        isCompleted && {
+          backgroundColor: '#FFF8E7',
+          borderColor: '#E8B923',
+          borderWidth: 1.5,
+        },
+      ]}
+    >
       <View style={styles.powerLeft}>
-        <View style={styles.powerIcon}>
+        <View
+          style={[
+            styles.powerIcon,
+            isCompleted && { backgroundColor: '#E8B923' },
+          ]}
+        >
           {isLocked ? (
             <Image source={LOCK_ICON} style={{ width: 28, height: 28 }} contentFit="contain" />
           ) : isCompleted ? (
             <Ionicons name="checkmark" size={18} color="#fff" />
-          ) : isFailed ? (
-            <Ionicons name="refresh" size={16} color="#fff" />
           ) : challenge.id === '1' ? (
             <Image source={FIRST_LIGHT_ICON} style={{ width: 28, height: 28 }} contentFit="contain" />
           ) : (
@@ -269,38 +157,13 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
             {challenge.name}
           </Text>
           <Text style={styles.powerMeta} numberOfLines={1}>
-            {isLocked
-              ? 'Locked'
-              : isFailed
-              ? 'Failed — resets at midnight'
-              : isCompleted
-              ? 'Completed'
-              : `${challenge.current}/${challenge.target} • ${challenge.goal}`}
+            {isLocked ? 'Locked' : isCompleted ? 'Completed' : challenge.goal}
           </Text>
-
-          {isInProgress && challenge.target > 1 && (
-            <View
-              style={{
-                height: 4,
-                backgroundColor: '#f0e6e0',
-                borderRadius: 2,
-                marginTop: 6,
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  width: `${progress}%`,
-                  height: '100%',
-                  backgroundColor: '#B83F3F',
-                  borderRadius: 2,
-                }}
-              />
-            </View>
-          )}
         </View>
       </View>
-      <Text style={styles.powerChevron}>{isFailed ? '↺' : '›'}</Text>
+      <Text style={[styles.powerChevron, isCompleted && { color: '#E8B923' }]}>
+        {isCompleted ? '✓' : '›'}
+      </Text>
     </View>
   );
 }
@@ -322,25 +185,29 @@ export default function HomeScreen() {
   const [happiness, setHappiness] = useState(100);
   const [scrollMinutes, setScrollMinutes] = useState(0);
   const [scrollLimit, setScrollLimit] = useState(45);
-  const [hasUsagePermission, setHasUsagePermission] = useState<boolean | null>(null);
+  const [hasUsagePermissionState, setHasUsagePermissionState] = useState<boolean | null>(null);
 
-  const [challenges] = useState<Challenge[]>(INITIAL_CHALLENGES);
+  const [challengeViews, setChallengeViews] = useState<ChallengeView[]>(
+    buildChallengeViews(emptyChallengeState())
+  );
 
-  const level = 12;
   const isHealthy = scrollMinutes <= scrollLimit;
-  const completedCount = challenges.filter((c) => c.status === 'completed').length;
+  const completedCount = challengeViews.filter((c) => c.status === 'completed').length;
+  const unlockedBadgeCount = badgeUnlockCount(completedCount);
 
   const badges = [
-    { id: '1', name: 'Sun Gazer', type: 'sun' as const, unlocked: completedCount >= 1 },
-    { id: '2', name: 'Focus King', type: 'focus' as const, unlocked: completedCount >= 2 },
-    { id: '3', name: 'Deep Sleeper', type: 'sleep' as const, unlocked: completedCount >= 3 },
-    { id: '4', name: 'Bookworm', type: 'book' as const, unlocked: completedCount >= 4 },
+    { id: '1', name: 'Sun Gazer', type: 'sun' as const, unlocked: unlockedBadgeCount >= 1 },
+    { id: '2', name: 'Focus King', type: 'focus' as const, unlocked: unlockedBadgeCount >= 2 },
+    { id: '3', name: 'Deep Sleeper', type: 'sleep' as const, unlocked: unlockedBadgeCount >= 3 },
+    { id: '4', name: 'Bookworm', type: 'book' as const, unlocked: unlockedBadgeCount >= 4 },
   ];
 
-  const visibleChallenges = challengesExpanded ? challenges : challenges.slice(0, 4);
+  const visibleChallenges = challengesExpanded
+    ? challengeViews
+    : challengeViews.slice(0, 4);
 
   // ─────────────────────────────────────────────
-  // CORE: Load pet + real usage with baseline
+  // CORE: Load pet + real usage + challenges
   // ─────────────────────────────────────────────
   const loadPetAndUsage = useCallback(async () => {
     if (!user) {
@@ -360,8 +227,8 @@ export default function HomeScreen() {
       const raw = userDoc.data().pet as PetData;
       setPet(raw);
 
-      const granted = await checkAndRequestUsagePermission();
-      setHasUsagePermission(granted);
+      const granted = await hasUsagePermission();
+      setHasUsagePermissionState(granted);
 
       let minutes = 0;
       let baselineMinutes = raw.usageBaselineMinutes ?? 0;
@@ -396,7 +263,25 @@ export default function HomeScreen() {
       setScrollMinutes(next.totalScrollToday);
       setScrollLimit(next.scrollLimit);
 
-      // ── Build / update usage history (UTC keys) ──
+      // ── Challenges (strict sequential evaluation) ──
+      let challengeState = raw.challenges ?? emptyChallengeState();
+
+      if (granted) {
+        try {
+          challengeState = await evaluateChallenges({
+            existing: challengeState,
+            scrollLimit: next.scrollLimit,
+            createdAt: raw.createdAt,
+            health: next.health,
+          });
+        } catch (e) {
+          console.log('Challenge evaluate error:', e);
+        }
+      }
+
+      setChallengeViews(buildChallengeViews(challengeState));
+
+      // ── Usage history (UTC keys for graphs) ──
       const todayKey = getUTCDateKey();
       const existingHistory: Record<string, number> =
         userDoc.data()?.usageHistory ?? {};
@@ -406,7 +291,6 @@ export default function HomeScreen() {
         [todayKey]: minutes,
       };
 
-      // Keep only the last ~90 days
       const sortedKeys = Object.keys(updatedHistory).sort();
       if (sortedKeys.length > 90) {
         const keep = sortedKeys.slice(-90);
@@ -417,7 +301,6 @@ export default function HomeScreen() {
         updatedHistory = trimmed;
       }
 
-      // Save pet state + history together
       await setDoc(
         userRef,
         {
@@ -426,6 +309,7 @@ export default function HomeScreen() {
             ...next,
             usageBaselineMinutes: baselineMinutes,
             usageBaselineDate: baselineDate,
+            challenges: challengeState,
           },
           usageHistory: updatedHistory,
         },
@@ -438,12 +322,10 @@ export default function HomeScreen() {
     }
   }, [user]);
 
-  // Run on first mount
   useEffect(() => {
     loadPetAndUsage();
   }, [loadPetAndUsage]);
 
-  // Also re-run every time the user comes back to this screen
   useFocusEffect(
     useCallback(() => {
       loadPetAndUsage();
@@ -487,8 +369,9 @@ export default function HomeScreen() {
   };
 
   const handleRequestPermission = async () => {
-    const granted = await checkAndRequestUsagePermission();
-    setHasUsagePermission(granted);
+    await requestUsagePermission();
+    const granted = await hasUsagePermission();
+    setHasUsagePermissionState(granted);
     if (granted) {
       await loadPetAndUsage();
     }
@@ -526,7 +409,7 @@ export default function HomeScreen() {
     ) : null;
 
   const PermissionBanner = () => {
-    if (hasUsagePermission !== false) return null;
+    if (hasUsagePermissionState !== false) return null;
 
     return (
       <Pressable
@@ -618,7 +501,7 @@ export default function HomeScreen() {
           <ChallengeCard key={c.id} challenge={c} />
         ))}
       </View>
-      {challenges.length > 4 && (
+      {challengeViews.length > 4 && (
         <Pressable
           onPress={() => setChallengesExpanded((prev) => !prev)}
           style={{
@@ -631,7 +514,9 @@ export default function HomeScreen() {
           }}
         >
           <Text style={{ fontSize: 13, fontWeight: '700', color: '#B83F3F' }}>
-            {challengesExpanded ? 'Show less' : `Show all ${challenges.length} challenges`}
+            {challengesExpanded
+              ? 'Show less'
+              : `Show all ${challengeViews.length} challenges`}
           </Text>
           <Ionicons
             name={challengesExpanded ? 'chevron-up' : 'chevron-down'}
@@ -693,12 +578,11 @@ export default function HomeScreen() {
                 width: '100%',
                 paddingHorizontal: 12,
                 flexDirection: 'row',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
                 marginBottom: 8,
               }}
             >
-              <Text style={styles.landscapeLevel}>LVL {level}</Text>
               <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
                 <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
               </Pressable>
@@ -713,7 +597,10 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.landscapeWhiteCard}>
-            <ScrollView contentContainerStyle={styles.landscapeScrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              contentContainerStyle={styles.landscapeScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
               <PermissionBanner />
 
               <View style={styles.barsRowLandscape}>
@@ -784,8 +671,7 @@ export default function HomeScreen() {
       <HeaderMenu />
       <View style={{ flex: 1 }}>
         <View style={styles.portraitHero}>
-          <View style={styles.portraitHeaderRow}>
-            <Text style={styles.portraitLevel}>LVL {level}</Text>
+          <View style={[styles.portraitHeaderRow, { justifyContent: 'flex-end' }]}>
             <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
               <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
             </Pressable>
@@ -800,7 +686,10 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.portraitWhiteCard}>
-          <ScrollView contentContainerStyle={styles.portraitScrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.portraitScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <PermissionBanner />
 
             <View style={styles.barsRow}>

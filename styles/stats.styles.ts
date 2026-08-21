@@ -4,7 +4,7 @@ export const styles = StyleSheet.create({
   // Shared
   safe: {
     flex: 1,
-    backgroundColor: '#FFF9F5',
+    backgroundColor: '#B83F3F',
   },
 
   // ========== LANDSCAPE ==========

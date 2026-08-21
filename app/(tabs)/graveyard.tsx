@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Modal,
@@ -19,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
 const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
+const LOGO_SKULL = require('@/assets/images/Logo Skull.png');
 
 const DEAD_IMAGE: Record<string, any> = {
   Nugget: PANDA_DEAD,
@@ -177,9 +179,11 @@ export default function GraveyardScreen() {
           </ScrollView>
 
           <View style={styles.landscapeRight}>
-            <View style={styles.landscapeSkullBox}>
-              <Ionicons name="skull" size={34} color="#FFF" />
-            </View>
+            <Image
+              source={LOGO_SKULL}
+              style={{ width: 70, height: 70 }}
+              contentFit="contain"
+            />
             <Text style={styles.landscapeTitle}>
               Eternal Resting{'\n'}Place
             </Text>
@@ -207,9 +211,11 @@ export default function GraveyardScreen() {
       <View style={styles.darkBg}>
         <ScrollView contentContainerStyle={styles.portraitScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.portraitHeader}>
-            <View style={styles.portraitSkullBox}>
-              <Ionicons name="skull" size={34} color="#FFF" />
-            </View>
+            <Image
+              source={LOGO_SKULL}
+              style={{ width: 70, height: 70, marginBottom: 14 }}
+              contentFit="contain"
+            />
             <Text style={styles.portraitTitle}>Eternal Resting Place</Text>
             <Text style={styles.portraitSubtitle}>
               Every scroll cost a soul.{'\n'}Remember those who suffered.
