@@ -4,11 +4,12 @@ import {
   checkAndRequestUsagePermission,
   getPetScrollMinutes,
   getTopEnemyApp,
+  getUTCDateKey,
 } from '@/services/usage';
 import { styles } from '@/styles/stats.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +34,50 @@ function getIntensityLevel(minutes: number, limit: number): number {
   return 4;
 }
 
+function toDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function getLast7Days(): { key: string; label: string }[] {
+  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const result: { key: string; label: string }[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    result.push({
+      key: toDateKey(d),
+      label: labels[d.getDay()],
+    });
+  }
+  return result;
+}
+
+function calculateStreak(history: Record<string, number>, limit: number): number {
+  let streak = 0;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+
+  // Start from today and walk backwards
+  while (true) {
+    const key = toDateKey(d);
+    const minutes = history[key];
+
+    // No data for this day → streak stops
+    if (minutes === undefined) break;
+
+    if (minutes <= limit) {
+      streak += 1;
+      d.setDate(d.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 export default function StatsScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -46,6 +91,7 @@ export default function StatsScreen() {
   const [health, setHealth] = useState(100);
   const [topEnemy, setTopEnemy] = useState('—');
   const [streak, setStreak] = useState(0);
+  const [weeklyTotal, setWeeklyTotal] = useState(0);
   const [month] = useState(
     new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()
   );
@@ -60,6 +106,11 @@ export default function StatsScreen() {
     { day: 'Sun', value: 0 },
   ]);
 
+  // Activity matrix for the current month (index 0 = day 1)
+  const [activity, setActivity] = useState<number[]>(
+    Array.from({ length: 31 }, () => 0)
+  );
+
   const loadStats = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -72,12 +123,15 @@ export default function StatsScreen() {
       setGraveyardCount(graveSnap.size);
 
       // Current pet + usage
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const pet = userDoc.exists() ? userDoc.data()?.pet : null;
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.exists() ? userDoc.data() : {};
+      const pet = userData?.pet ?? null;
 
       let minutes = 0;
       let limit = 45;
       let hp = 100;
+      let history: Record<string, number> = userData?.usageHistory ?? {};
 
       if (pet) {
         limit = pet.scrollLimit ?? 45;
@@ -87,7 +141,8 @@ export default function StatsScreen() {
         if (granted) {
           const result = await getPetScrollMinutes(
             pet.usageBaselineMinutes ?? 0,
-            pet.usageBaselineDate ?? ''
+            pet.usageBaselineDate ?? '',
+            pet.createdAt
           );
           minutes = result.minutes;
 
@@ -99,21 +154,72 @@ export default function StatsScreen() {
         }
       }
 
+      // ── Persist today's real minutes into history ──
+      const todayKey = getUTCDateKey();
+      history = {
+        ...history,
+        [todayKey]: minutes,
+      };
+
+      // Keep history from growing forever (keep last ~90 days)
+      const sortedKeys = Object.keys(history).sort();
+      if (sortedKeys.length > 90) {
+        const keep = sortedKeys.slice(-90);
+        const trimmed: Record<string, number> = {};
+        keep.forEach((k) => {
+          trimmed[k] = history[k];
+        });
+        history = trimmed;
+      }
+
+      // Write history back (merge so we don't wipe other fields)
+      await setDoc(
+        userRef,
+        { usageHistory: history },
+        { merge: true }
+      );
+
       setTodayMinutes(minutes);
       setScrollLimit(limit);
       setHealth(hp);
 
-      // Simple streak for now
-      setStreak(minutes <= limit ? 1 : 0);
+      // ── Real streak ──
+      setStreak(calculateStreak(history, limit));
 
-      // Put today's real value into the correct day of the week
-      const dayIndex = new Date().getDay(); // 0 = Sun
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      setWeeklyData((prev) =>
-        prev.map((d) =>
-          d.day === dayNames[dayIndex] ? { ...d, value: minutes } : d
-        )
-      );
+      // ── Weekly data (last 7 days) ──
+      const last7 = getLast7Days();
+      const weekValues = last7.map((d) => ({
+        day: d.label,
+        value: history[d.key] ?? 0,
+      }));
+
+      // Re-order to Mon → Sun to match the original UI expectation
+      const monFirstOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const orderedWeek = monFirstOrder.map((label) => {
+        const found = weekValues.find((d) => d.day === label);
+        return found ?? { day: label, value: 0 };
+      });
+
+      setWeeklyData(orderedWeek);
+      setWeeklyTotal(orderedWeek.reduce((sum, d) => sum + d.value, 0));
+
+      // ── Activity matrix for current month ──
+      const now = new Date();
+      const year = now.getFullYear();
+      const monthIndex = now.getMonth(); // 0-based
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+      const monthActivity: number[] = [];
+      for (let day = 1; day <= 31; day++) {
+        if (day > daysInMonth) {
+          monthActivity.push(0);
+          continue;
+        }
+        const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayMinutes = history[key] ?? 0;
+        monthActivity.push(getIntensityLevel(dayMinutes, limit));
+      }
+      setActivity(monthActivity);
     } catch (err) {
       console.log('Error loading stats:', err);
     } finally {
@@ -128,18 +234,11 @@ export default function StatsScreen() {
   );
 
   const maxBar = Math.max(45, ...weeklyData.map((d) => d.value), 1);
-  const intensity = getIntensityLevel(todayMinutes, scrollLimit);
   const isHealthyWeek = todayMinutes <= scrollLimit;
-
-  const today = new Date().getDate();
-  const activity = Array.from({ length: 31 }, (_, i) => {
-    if (i + 1 === today) return intensity;
-    return 0;
-  });
 
   const statCards = [
     { label: 'DAILY AVG', value: `${todayMinutes}m`, icon: 'time-outline' },
-    { label: 'WEEKLY', value: '—', icon: 'trending-down' },
+    { label: 'WEEKLY', value: `${weeklyTotal}m`, icon: 'trending-down' },
     { label: 'TOP ENEMY', value: topEnemy, icon: 'phone-portrait-outline' },
     { label: 'STREAK', value: `${streak}D`, icon: 'flash-outline' },
   ];

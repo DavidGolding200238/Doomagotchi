@@ -5,6 +5,7 @@ import { applyHealthTick, type PetHealthState } from '@/services/health';
 import {
   checkAndRequestUsagePermission,
   getPetScrollMinutes,
+  getUTCDateKey,
 } from '@/services/usage';
 import { styles } from '@/styles/home.styles';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 // ─────────────────────────────────────────────
 // ASSETS
@@ -347,7 +349,9 @@ export default function HomeScreen() {
     }
 
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+
       if (!userDoc.exists() || !userDoc.data()?.pet) {
         setLoading(false);
         return;
@@ -364,7 +368,11 @@ export default function HomeScreen() {
       let baselineDate = raw.usageBaselineDate ?? '';
 
       if (granted) {
-        const result = await getPetScrollMinutes(baselineMinutes, baselineDate);
+        const result = await getPetScrollMinutes(
+          baselineMinutes,
+          baselineDate,
+          raw.createdAt
+        );
         minutes = result.minutes;
         baselineMinutes = result.newBaseline;
         baselineDate = result.newBaselineDate;
@@ -378,7 +386,7 @@ export default function HomeScreen() {
         scrollLimit: raw.scrollLimit ?? 45,
         totalScrollToday: raw.totalScrollToday ?? 0,
         lastHealthUpdate: raw.lastHealthUpdate ?? new Date().toISOString(),
-        lastScrollDate: raw.lastScrollDate ?? new Date().toISOString().slice(0, 10),
+        lastScrollDate: raw.lastScrollDate ?? getUTCDateKey(),
       };
 
       const next = applyHealthTick(prev, minutes);
@@ -388,9 +396,30 @@ export default function HomeScreen() {
       setScrollMinutes(next.totalScrollToday);
       setScrollLimit(next.scrollLimit);
 
-      // Save everything including the baseline
+      // ── Build / update usage history (UTC keys) ──
+      const todayKey = getUTCDateKey();
+      const existingHistory: Record<string, number> =
+        userDoc.data()?.usageHistory ?? {};
+
+      let updatedHistory: Record<string, number> = {
+        ...existingHistory,
+        [todayKey]: minutes,
+      };
+
+      // Keep only the last ~90 days
+      const sortedKeys = Object.keys(updatedHistory).sort();
+      if (sortedKeys.length > 90) {
+        const keep = sortedKeys.slice(-90);
+        const trimmed: Record<string, number> = {};
+        keep.forEach((k) => {
+          trimmed[k] = updatedHistory[k];
+        });
+        updatedHistory = trimmed;
+      }
+
+      // Save pet state + history together
       await setDoc(
-        doc(db, 'users', user.uid),
+        userRef,
         {
           pet: {
             ...raw,
@@ -398,6 +427,7 @@ export default function HomeScreen() {
             usageBaselineMinutes: baselineMinutes,
             usageBaselineDate: baselineDate,
           },
+          usageHistory: updatedHistory,
         },
         { merge: true }
       );

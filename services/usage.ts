@@ -24,6 +24,11 @@ const APP_NAMES: Record<string, string> = {
   'com.snapchat.android': 'Snapchat',
 };
 
+/** Always returns YYYY-MM-DD in UTC to avoid timezone edge cases */
+export function getUTCDateKey(date: Date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export async function checkAndRequestUsagePermission(): Promise<boolean> {
   const hasPermission = await UsageStats.hasUsageStatsPermission();
 
@@ -35,11 +40,11 @@ export async function checkAndRequestUsagePermission(): Promise<boolean> {
   return true;
 }
 
-/** Raw total minutes spent in social apps today (from midnight) */
+/** Raw total minutes spent in social apps today (from midnight UTC) */
 export async function getRawTodaySocialMinutes(): Promise<number> {
   const now = Date.now();
   const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  startOfDay.setUTCHours(0, 0, 0, 0);
 
   const stats = await UsageStats.getUsageStats(startOfDay.getTime(), now);
 
@@ -55,31 +60,43 @@ export async function getRawTodaySocialMinutes(): Promise<number> {
 
 /**
  * Returns the minutes that should count for the pet today.
- * Uses a baseline so only scrolling AFTER the user started using the app is counted.
+ *
+ * - On the day the pet was created → baseline protection
+ * - Every day after that → full usage from midnight UTC counts
  */
 export async function getPetScrollMinutes(
   baselineMinutes: number,
-  baselineDate: string
+  baselineDate: string,
+  petCreatedAt?: string
 ): Promise<{ minutes: number; newBaseline: number; newBaselineDate: string }> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getUTCDateKey();
   const raw = await getRawTodaySocialMinutes();
 
-  // New day → reset baseline
-  if (baselineDate !== today) {
+  const createdDate = petCreatedAt ? petCreatedAt.slice(0, 10) : null;
+  const isCreationDay = createdDate === today;
+
+  // ── First day the pet exists → keep the original protection ──
+  if (isCreationDay) {
+    if (baselineDate !== today) {
+      return {
+        minutes: 0,
+        newBaseline: raw,
+        newBaselineDate: today,
+      };
+    }
+
     return {
-      minutes: 0,
-      newBaseline: raw,
-      newBaselineDate: today,
+      minutes: Math.max(0, raw - baselineMinutes),
+      newBaseline: baselineMinutes,
+      newBaselineDate: baselineDate,
     };
   }
 
-  // Same day → only count the difference
-  const minutes = Math.max(0, raw - baselineMinutes);
-
+  // ── Any day after creation → full usage counts ──
   return {
-    minutes,
-    newBaseline: baselineMinutes,
-    newBaselineDate: baselineDate,
+    minutes: raw,
+    newBaseline: 0,
+    newBaselineDate: today,
   };
 }
 
@@ -87,7 +104,7 @@ export async function getPetScrollMinutes(
 export async function getTopEnemyApp(): Promise<string> {
   const now = Date.now();
   const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  startOfDay.setUTCHours(0, 0, 0, 0);
 
   const stats = await UsageStats.getUsageStats(startOfDay.getTime(), now);
 
