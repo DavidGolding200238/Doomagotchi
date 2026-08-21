@@ -26,7 +26,7 @@ export const styles = StyleSheet.create({
     borderRadius: 44,
     backgroundColor: '#FFF0EB',
     borderWidth: 2.5,
-    borderColor: '#E8B923',
+    borderColor: '#B83F3F',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,

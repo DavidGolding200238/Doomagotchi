@@ -7,34 +7,36 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-    Extrapolation,
-    interpolate,
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const DUCK = require('@/assets/images/duckpet.gif');
+const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
+const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
 
 const DEAD_IMAGE: Record<string, any> = {
-  Nugget: DUCK,
-  Waddles: DUCK,
+  Nugget: PANDA_DEAD,
+  Waddles: DUCK_DEAD,
   Spino: SPINO_DEAD,
+
 };
 
 export default function RestScreen() {
@@ -94,7 +96,6 @@ export default function RestScreen() {
     }
   };
 
-  // Same idea as pet selection: drag DOWN to commit
   const pan = Gesture.Pan()
     .onBegin(() => {
       runOnJS(setIsDragging)(true);
@@ -150,7 +151,7 @@ export default function RestScreen() {
     return Math.max(1, Math.floor((Date.now() - start) / (1000 * 60 * 60 * 24)));
   })();
 
-  const image = DEAD_IMAGE[pet.type] ?? DUCK;
+  const image = DEAD_IMAGE[pet.type] ?? DUCK_DEAD;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
@@ -171,7 +172,6 @@ export default function RestScreen() {
                   shadowColor: '#B83F3F',
                   shadowOpacity: isDragging ? 0.55 : 0.25,
                   shadowRadius: isDragging ? 22 : 10,
-                  // Android: avoid elevation hex artifacts on rounded views
                   elevation: 0,
                 },
               ]}

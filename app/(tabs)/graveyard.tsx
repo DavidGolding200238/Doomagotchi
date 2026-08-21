@@ -16,18 +16,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const DUCK = require('@/assets/images/duckpet.gif');
 const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
+const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
 
 const DEAD_IMAGE: Record<string, any> = {
-  Nugget: DUCK,
+  Nugget: PANDA_DEAD,
   Waddles: DUCK_DEAD,
   Spino: SPINO_DEAD,
+  
 };
 
 function petImage(type?: string) {
-  return DEAD_IMAGE[type ?? ''] ?? DUCK;
+  return DEAD_IMAGE[type ?? ''] ?? DUCK_DEAD;
 }
 
 type FallenPet = {

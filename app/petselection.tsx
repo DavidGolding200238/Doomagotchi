@@ -35,21 +35,24 @@ const PETS = [
     title: 'THE SOFT ONE',
     description: 'Tiny, round, and emotionally fragile. Dies a little every time you open TikTok.',
     images: {
-      happy: [require('@/assets/images/duckpet.gif')],
+      happy: [
+        require('@/assets/pets/Panda/Panda Idle.gif'),
+        require('@/assets/pets/Panda/Panda Eating.gif'),
+      ],
     },
   },
-{
-  id: '2',
-  name: 'Waddles',
-  title: 'THE HAPPY DUCK',
-  description: 'Has one brain cell and it’s trusting you with it. Don’t open Instagram.',
-  images: {
-    happy: [
-      require('@/assets/pets/Duck/Duck Idle.gif'),
-      require('@/assets/pets/Duck/Duck Walk.gif'),
-    ],
+  {
+    id: '2',
+    name: 'Waddles',
+    title: 'THE HAPPY DUCK',
+    description: 'Has one brain cell and it’s trusting you with it. Don’t open Instagram.',
+    images: {
+      happy: [
+        require('@/assets/pets/Duck/Duck Idle.gif'),
+        require('@/assets/pets/Duck/Duck Walk.gif'),
+      ],
+    },
   },
-},
   {
     id: '3',
     name: 'Spino',

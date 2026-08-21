@@ -25,7 +25,6 @@ function clamp(n: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(n)));
 }
 
-// mock minutes
 export function applyHealthTick(
   prev: PetHealthState,
   scrollMinutesToday: number,
@@ -37,7 +36,19 @@ export function applyHealthTick(
   let happiness = prev.happiness ?? 100;
   const scrollLimit = prev.scrollLimit || DEFAULT_LIMIT;
 
-  // New day small recovery
+  // Once dead, stay dead — no recovery allowed
+  if (health <= 0) {
+    return {
+      health: 0,
+      happiness: Math.min(happiness, 10),
+      scrollLimit,
+      totalScrollToday: scrollMinutesToday,
+      lastHealthUpdate: now.toISOString(),
+      lastScrollDate: today,
+    };
+  }
+
+  // New day small recovery (only if still alive)
   if (prev.lastScrollDate !== today) {
     health = clamp(health + 5);
     happiness = clamp(happiness + 5);

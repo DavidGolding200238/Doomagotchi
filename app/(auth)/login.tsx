@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { styles } from '@/styles/login.styles';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -55,11 +56,14 @@ export default function LoginScreen() {
         >
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
-              <Ionicons name="skull" size={40} color="#B83F3F" />
+              <Image
+                source={require('@/assets/images/Logo Skull.png')}
+                style={{ width: 106, height: 100 }}
+                contentFit="contain"
+              />
             </View>
 
             <Text style={styles.appTitle}>Doomagotchi</Text>
-
             <Text style={styles.appSubtitle}>Save your pet from the scroll</Text>
           </View>
 

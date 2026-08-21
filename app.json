@@ -19,7 +19,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.PACKAGE_USAGE_STATS"
+      ],
+      "package": "com.brohammer.Doomagotchi"
     },
     "web": {
       "output": "static",
@@ -45,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a6f5dd38-cc52-4f60-9c27-2282cef36eb4"
+      }
     }
   }
 }

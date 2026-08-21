@@ -2,12 +2,16 @@ import { BadgeIcon } from '@/components/BadgeIcon';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/services/firebase';
 import { applyHealthTick, type PetHealthState } from '@/services/health';
+import {
+  checkAndRequestUsagePermission,
+  getPetScrollMinutes,
+} from '@/services/usage';
 import { styles } from '@/styles/home.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +27,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // ─────────────────────────────────────────────
 // ASSETS
 // ─────────────────────────────────────────────
-const DUCK = require('@/assets/images/duckpet.gif');
 const DUCK_IDLE = require('@/assets/pets/Duck/Duck Idle.gif');
 const DUCK_WALK = require('@/assets/pets/Duck/Duck Walk.gif');
 const DUCK_SICK = require('@/assets/pets/Duck/Duck Sick.gif');
@@ -34,6 +37,11 @@ const SPINO_WALK = require('@/assets/pets/Spinosaurus/Walking Spino.gif');
 const SPINO_SICK = require('@/assets/pets/Spinosaurus/Sick Spino.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
 
+const PANDA_IDLE= require('@/assets/pets/Panda/Panda Idle.gif');
+const PANDA_EATING = require('@/assets/pets/Panda/Panda Eating.gif');
+const PANDA_SICK = require('@/assets/pets/Panda/Sick Panda.gif');
+const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
+
 const SUN_BADGE = require('@/assets/images/Sun badge.png');
 const FIRST_LIGHT_ICON = require('@/assets/images/First Light.png');
 const LOCK_ICON = require('@/assets/images/Lock icon.png');
@@ -42,9 +50,9 @@ type AnimState = 'happy' | 'sick' | 'dead';
 
 const PET_FRAMES: Record<string, Record<AnimState, any[]>> = {
   Nugget: {
-    happy: [DUCK],
-    sick: [DUCK],
-    dead: [DUCK],
+    happy: [PANDA_IDLE, PANDA_EATING],
+    sick: [PANDA_SICK],
+    dead: [PANDA_DEAD],
   },
   Waddles: {
     happy: [DUCK_IDLE, DUCK_WALK],
@@ -194,8 +202,6 @@ const INITIAL_CHALLENGES: Challenge[] = [
   },
 ];
 
-const MOCK_SCROLL_MINUTES = 900;
-
 type PetData = {
   id: string;
   type: string;
@@ -208,6 +214,8 @@ type PetData = {
   totalScrollToday?: number;
   lastHealthUpdate?: string;
   lastScrollDate?: string;
+  usageBaselineMinutes?: number;
+  usageBaselineDate?: string;
 };
 
 function PixelBar({ value, color }: { value: number; color: string }) {
@@ -235,7 +243,6 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
   const isFailed = challenge.status === 'failed';
   const isCompleted = challenge.status === 'completed';
   const isInProgress = challenge.status === 'in_progress' || challenge.status === 'available';
-
   const progress = Math.min(100, (challenge.current / challenge.target) * 100);
 
   return (
@@ -243,21 +250,13 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
       <View style={styles.powerLeft}>
         <View style={styles.powerIcon}>
           {isLocked ? (
-            <Image
-              source={LOCK_ICON}
-              style={{ width: 28, height: 28 }}
-              contentFit="contain"
-            />
+            <Image source={LOCK_ICON} style={{ width: 28, height: 28 }} contentFit="contain" />
           ) : isCompleted ? (
             <Ionicons name="checkmark" size={18} color="#fff" />
           ) : isFailed ? (
             <Ionicons name="refresh" size={16} color="#fff" />
           ) : challenge.id === '1' ? (
-            <Image
-              source={FIRST_LIGHT_ICON}
-              style={{ width: 28, height: 28 }}
-              contentFit="contain"
-            />
+            <Image source={FIRST_LIGHT_ICON} style={{ width: 28, height: 28 }} contentFit="contain" />
           ) : (
             <Text style={styles.powerXp}>{challenge.xp}</Text>
           )}
@@ -267,7 +266,6 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
           <Text style={styles.powerTitle} numberOfLines={1}>
             {challenge.name}
           </Text>
-
           <Text style={styles.powerMeta} numberOfLines={1}>
             {isLocked
               ? 'Locked'
@@ -300,10 +298,7 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
           )}
         </View>
       </View>
-
-      <Text style={styles.powerChevron}>
-        {isFailed ? '↺' : '›'}
-      </Text>
+      <Text style={styles.powerChevron}>{isFailed ? '↺' : '›'}</Text>
     </View>
   );
 }
@@ -325,103 +320,112 @@ export default function HomeScreen() {
   const [happiness, setHappiness] = useState(100);
   const [scrollMinutes, setScrollMinutes] = useState(0);
   const [scrollLimit, setScrollLimit] = useState(45);
+  const [hasUsagePermission, setHasUsagePermission] = useState<boolean | null>(null);
 
   const [challenges] = useState<Challenge[]>(INITIAL_CHALLENGES);
 
   const level = 12;
   const isHealthy = scrollMinutes <= scrollLimit;
-
-  // Badge unlock thresholds: 1 / 2 / 3 / 4 completed challenges
   const completedCount = challenges.filter((c) => c.status === 'completed').length;
 
   const badges = [
-    {
-      id: '1',
-      name: 'Sun Gazer',
-      type: 'sun' as const,
-      unlocked: completedCount >= 1,
-    },
-    {
-      id: '2',
-      name: 'Focus King',
-      type: 'focus' as const,
-      unlocked: completedCount >= 2,
-    },
-    {
-      id: '3',
-      name: 'Deep Sleeper',
-      type: 'sleep' as const,
-      unlocked: completedCount >= 3,
-    },
-    {
-      id: '4',
-      name: 'Bookworm',
-      type: 'book' as const,
-      unlocked: completedCount >= 4,
-    },
+    { id: '1', name: 'Sun Gazer', type: 'sun' as const, unlocked: completedCount >= 1 },
+    { id: '2', name: 'Focus King', type: 'focus' as const, unlocked: completedCount >= 2 },
+    { id: '3', name: 'Deep Sleeper', type: 'sleep' as const, unlocked: completedCount >= 3 },
+    { id: '4', name: 'Bookworm', type: 'book' as const, unlocked: completedCount >= 4 },
   ];
 
-  const visibleChallenges = challengesExpanded
-    ? challenges
-    : challenges.slice(0, 4);
+  const visibleChallenges = challengesExpanded ? challenges : challenges.slice(0, 4);
 
-  useEffect(() => {
-    async function loadPetAndHealth() {
-      if (!user) {
+  // ─────────────────────────────────────────────
+  // CORE: Load pet + real usage with baseline
+  // ─────────────────────────────────────────────
+  const loadPetAndUsage = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!userDoc.exists() || !userDoc.data()?.pet) {
         setLoading(false);
         return;
       }
 
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (!userDoc.exists() || !userDoc.data()?.pet) {
-          setLoading(false);
-          return;
-        }
+      const raw = userDoc.data().pet as PetData;
+      setPet(raw);
 
-        const raw = userDoc.data().pet as PetData;
-        setPet(raw);
+      const granted = await checkAndRequestUsagePermission();
+      setHasUsagePermission(granted);
 
-        const prev: PetHealthState = {
-          health: raw.health ?? 100,
-          happiness: raw.happiness ?? 100,
-          scrollLimit: raw.scrollLimit ?? 45,
-          totalScrollToday: raw.totalScrollToday ?? 0,
-          lastHealthUpdate: raw.lastHealthUpdate ?? new Date().toISOString(),
-          lastScrollDate: raw.lastScrollDate ?? new Date().toISOString().slice(0, 10),
-        };
+      let minutes = 0;
+      let baselineMinutes = raw.usageBaselineMinutes ?? 0;
+      let baselineDate = raw.usageBaselineDate ?? '';
 
-        const minutes = MOCK_SCROLL_MINUTES;
-        const next = applyHealthTick(prev, minutes);
-
-        setHealth(next.health);
-        setHappiness(next.happiness);
-        setScrollMinutes(next.totalScrollToday);
-        setScrollLimit(next.scrollLimit);
-
-        await setDoc(
-          doc(db, 'users', user.uid),
-          { pet: { ...raw, ...next } },
-          { merge: true }
-        );
-      } catch (error) {
-        console.log('Error loading pet/health:', error);
-      } finally {
-        setLoading(false);
+      if (granted) {
+        const result = await getPetScrollMinutes(baselineMinutes, baselineDate);
+        minutes = result.minutes;
+        baselineMinutes = result.newBaseline;
+        baselineDate = result.newBaselineDate;
+      } else {
+        minutes = raw.totalScrollToday ?? 0;
       }
-    }
 
-    loadPetAndHealth();
+      const prev: PetHealthState = {
+        health: raw.health ?? 100,
+        happiness: raw.happiness ?? 100,
+        scrollLimit: raw.scrollLimit ?? 45,
+        totalScrollToday: raw.totalScrollToday ?? 0,
+        lastHealthUpdate: raw.lastHealthUpdate ?? new Date().toISOString(),
+        lastScrollDate: raw.lastScrollDate ?? new Date().toISOString().slice(0, 10),
+      };
+
+      const next = applyHealthTick(prev, minutes);
+
+      setHealth(next.health);
+      setHappiness(next.happiness);
+      setScrollMinutes(next.totalScrollToday);
+      setScrollLimit(next.scrollLimit);
+
+      // Save everything including the baseline
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          pet: {
+            ...raw,
+            ...next,
+            usageBaselineMinutes: baselineMinutes,
+            usageBaselineDate: baselineDate,
+          },
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.log('Error loading pet/usage:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
+  // Run on first mount
+  useEffect(() => {
+    loadPetAndUsage();
+  }, [loadPetAndUsage]);
+
+  // Also re-run every time the user comes back to this screen
+  useFocusEffect(
+    useCallback(() => {
+      loadPetAndUsage();
+    }, [loadPetAndUsage])
+  );
+
   const animState = getAnimState(health);
-  const frames =
-    PET_FRAMES[pet?.type ?? '']?.[animState] ?? PET_FRAMES.Nugget.happy;
+  const frames = PET_FRAMES[pet?.type ?? '']?.[animState] ?? PET_FRAMES.Nugget.happy;
   const petImage = frames[animFrame % frames.length];
 
   useEffect(() => {
     setAnimFrame(0);
-
     if (animState !== 'happy' || frames.length < 2) return;
 
     const id = setInterval(() => {
@@ -450,6 +454,14 @@ export default function HomeScreen() {
         },
       },
     ]);
+  };
+
+  const handleRequestPermission = async () => {
+    const granted = await checkAndRequestUsagePermission();
+    setHasUsagePermission(granted);
+    if (granted) {
+      await loadPetAndUsage();
+    }
   };
 
   const petName = pet?.name || 'Your Pet';
@@ -483,17 +495,41 @@ export default function HomeScreen() {
       </Pressable>
     ) : null;
 
-  const HeaderMenu = () => (
-    <Modal
-      visible={menuOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setMenuOpen(false)}
-    >
+  const PermissionBanner = () => {
+    if (hasUsagePermission !== false) return null;
+
+    return (
       <Pressable
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' }}
-        onPress={() => setMenuOpen(false)}
+        onPress={handleRequestPermission}
+        style={{
+          backgroundColor: '#FFF1F2',
+          borderWidth: 1.5,
+          borderColor: '#FECACA',
+          borderRadius: 14,
+          padding: 14,
+          marginBottom: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+        }}
       >
+        <Ionicons name="warning" size={22} color="#B83F3F" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: '800', fontSize: 14, color: '#1a1a1a' }}>
+            Enable Usage Access
+          </Text>
+          <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+            Required to track real scroll time
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#B83F3F" />
+      </Pressable>
+    );
+  };
+
+  const HeaderMenu = () => (
+    <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' }} onPress={() => setMenuOpen(false)}>
         <View
           style={{
             position: 'absolute',
@@ -546,16 +582,12 @@ export default function HomeScreen() {
 
   const ChallengesSection = ({ landscape = false }: { landscape?: boolean }) => (
     <>
-      <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>
-        CHALLENGES
-      </Text>
-
+      <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>CHALLENGES</Text>
       <View style={landscape ? styles.powerListLandscape : styles.powerList}>
         {visibleChallenges.map((c) => (
           <ChallengeCard key={c.id} challenge={c} />
         ))}
       </View>
-
       {challenges.length > 4 && (
         <Pressable
           onPress={() => setChallengesExpanded((prev) => !prev)}
@@ -583,41 +615,26 @@ export default function HomeScreen() {
 
   const BadgesSection = ({ landscape = false }: { landscape?: boolean }) => (
     <>
-      <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>
-        BADGES
-      </Text>
-
+      <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>BADGES</Text>
       <View style={landscape ? styles.badgesRowLandscape : styles.badgesRow}>
         {badges.map((b) => (
-          <View
-            key={b.id}
-            style={landscape ? styles.badgeCardLandscape : styles.badgeCard}
-          >
+          <View key={b.id} style={landscape ? styles.badgeCardLandscape : styles.badgeCard}>
             {!b.unlocked ? (
               <Image
                 source={LOCK_ICON}
-                style={{
-                  width: landscape ? 34 : 42,
-                  height: landscape ? 34 : 42,
-                }}
+                style={{ width: landscape ? 34 : 42, height: landscape ? 34 : 42 }}
                 contentFit="contain"
               />
             ) : b.type === 'sun' ? (
               <Image
                 source={SUN_BADGE}
-                style={{
-                  width: landscape ? 34 : 42,
-                  height: landscape ? 34 : 42,
-                }}
+                style={{ width: landscape ? 34 : 42, height: landscape ? 34 : 42 }}
                 contentFit="contain"
               />
             ) : (
               <BadgeIcon size={landscape ? 34 : 42} type={b.type} />
             )}
-            <Text
-              style={landscape ? styles.badgeNameLandscape : styles.badgeName}
-              numberOfLines={1}
-            >
+            <Text style={landscape ? styles.badgeNameLandscape : styles.badgeName} numberOfLines={1}>
               {b.name}
             </Text>
           </View>
@@ -658,11 +675,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.landscapePetCircle}>
-              <Image
-                source={petImage}
-                style={{ width: '86%', height: '86%' }}
-                contentFit="contain"
-              />
+              <Image source={petImage} style={{ width: '86%', height: '86%' }} contentFit="contain" />
             </View>
 
             <Text style={styles.landscapePetName}>{petName}</Text>
@@ -670,10 +683,9 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.landscapeWhiteCard}>
-            <ScrollView
-              contentContainerStyle={styles.landscapeScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
+            <ScrollView contentContainerStyle={styles.landscapeScrollContent} showsVerticalScrollIndicator={false}>
+              <PermissionBanner />
+
               <View style={styles.barsRowLandscape}>
                 <View style={styles.barBlock}>
                   <View style={styles.barLabelRowLandscape}>
@@ -750,11 +762,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.portraitPetCircle}>
-            <Image
-              source={petImage}
-              style={{ width: '85%', height: '85%' }}
-              contentFit="contain"
-            />
+            <Image source={petImage} style={{ width: '85%', height: '85%' }} contentFit="contain" />
           </View>
 
           <Text style={styles.portraitPetName}>{petName}</Text>
@@ -762,10 +770,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.portraitWhiteCard}>
-          <ScrollView
-            contentContainerStyle={styles.portraitScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView contentContainerStyle={styles.portraitScrollContent} showsVerticalScrollIndicator={false}>
+            <PermissionBanner />
+
             <View style={styles.barsRow}>
               <View style={styles.barBlock}>
                 <View style={styles.barLabelRow}>
@@ -806,12 +813,7 @@ export default function HomeScreen() {
                     { backgroundColor: isHealthy ? '#DCFCE7' : '#FEE2E2' },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: isHealthy ? '#16a34a' : '#dc2626' },
-                    ]}
-                  >
+                  <Text style={[styles.statusText, { color: isHealthy ? '#16a34a' : '#dc2626' }]}>
                     {isHealthy ? 'LOOKING GOOD' : 'TOO MUCH'}
                   </Text>
                 </View>
