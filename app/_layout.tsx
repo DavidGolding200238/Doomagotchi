@@ -9,6 +9,11 @@ import 'react-native-reanimated';
 
 import { AuthProvider } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { registerBackgroundHealthTask } from '@/services/background';
+import { setupNotifications } from '@/services/notifications';
+
+// Must import so TaskManager.defineTask runs at bundle load
+import '@/services/background';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,6 +29,13 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    (async () => {
+      await setupNotifications();
+      await registerBackgroundHealthTask();
+    })();
+  }, []);
 
   if (!fontsLoaded) {
     return null;

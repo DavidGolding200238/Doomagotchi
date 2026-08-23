@@ -1,20 +1,21 @@
 import { auth } from '@/services/firebase';
 import {
+  GoogleAuthProvider,
   User,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogleIdToken: (idToken: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -41,9 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await createUserWithEmailAndPassword(auth, email, password);
   };
 
-  // Placeholder for now (Google is paused)
-  const signInWithGoogle = async () => {
-    Alert.alert('Coming soon', 'Google Sign-In will be added later.');
+  const signInWithGoogleIdToken = async (idToken: string) => {
+    const credential = GoogleAuthProvider.credential(idToken);
+    await signInWithCredential(auth, credential);
   };
 
   const signOut = async () => {
@@ -51,7 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signIn,
+        signUp,
+        signInWithGoogleIdToken,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
