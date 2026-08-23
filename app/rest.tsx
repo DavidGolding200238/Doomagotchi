@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
 const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
+const LOGO_SKULL = require('@/assets/images/Logo Skull.png');
 
 const DEAD_IMAGE: Record<string, any> = {
   Nugget: PANDA_DEAD,
@@ -179,7 +180,11 @@ export default function RestScreen() {
               <Image source={image} style={styles.petImage} contentFit="contain" />
             </View>
             <Text style={styles.petName}>{pet.name}</Text>
-            <Text style={styles.petMeta}>0% HP · Gone</Text>
+            <Image
+              source={LOGO_SKULL}
+              style={{ width: 66, height: 66, marginTop: 6 }}
+              contentFit="contain"
+            />
           </Animated.View>
         </GestureDetector>
       </View>

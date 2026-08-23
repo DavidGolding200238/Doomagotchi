@@ -1,4 +1,3 @@
-import { BadgeIcon } from '@/components/BadgeIcon';
 import { useAuth } from '@/context/AuthContext';
 import {
   badgeUnlockCount,
@@ -21,21 +20,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Modal,
   Pressable,
   ScrollView,
   Text,
   View,
   useWindowDimensions,
+  type DimensionValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─────────────────────────────────────────────
-// ASSETS
+// PET ASSETS
 // ─────────────────────────────────────────────
 const DUCK_IDLE = require('@/assets/pets/Duck/Duck Idle.gif');
 const DUCK_WALK = require('@/assets/pets/Duck/Duck Walk.gif');
@@ -46,15 +47,56 @@ const SPINO_IDLE = require('@/assets/pets/Spinosaurus/Idle Spino.gif');
 const SPINO_WALK = require('@/assets/pets/Spinosaurus/Walking Spino.gif');
 const SPINO_SICK = require('@/assets/pets/Spinosaurus/Sick Spino.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
+const SPINO_RARE = require('@/assets/pets/Spinosaurus/Easter Egg.gif');
 
 const PANDA_IDLE = require('@/assets/pets/Panda/Panda Idle.gif');
 const PANDA_EATING = require('@/assets/pets/Panda/Panda Eating.gif');
 const PANDA_SICK = require('@/assets/pets/Panda/Sick Panda.gif');
 const PANDA_DEAD = require('@/assets/pets/Panda/Dead Panda.gif');
 
-const SUN_BADGE = require('@/assets/images/Sun badge.png');
-const FIRST_LIGHT_ICON = require('@/assets/images/First Light.png');
+// ─────────────────────────────────────────────
+// CHALLENGE ICONS
+// ─────────────────────────────────────────────
+const ICON_FIRST_LIGHT = require('@/assets/Icons/First Light.png');
+const ICON_NO_REELS_NIGHT = require('@/assets/Icons/No Reels Night.png');
+const ICON_TWO_DAY_STREAK = require('@/assets/Icons/Two-Day Streak.png');
+const ICON_SCROLL_FAST = require('@/assets/Icons/Scroll Fast.png');
+const ICON_THREE_DAY_STREAK = require('@/assets/Icons/Three-Day Streak.png');
+const ICON_MORNING_MUTE = require('@/assets/Icons/Morning Mute.png');
+const ICON_FIVE_DAY_GUARDIAN = require('@/assets/Icons/Five-Day Guardian.png');
+const ICON_WEEKEND_WARRIOR = require('@/assets/Icons/Weekend Warrior.png');
+const ICON_WEEK_OF_FOCUS = require('@/assets/Icons/Week of Focus.png');
+const ICON_PET_PROTECTOR = require('@/assets/Icons/Pet Protector.png');
+
+// ─────────────────────────────────────────────
+// BADGE ICONS
+// ─────────────────────────────────────────────
+const BADGE_SUN_GAZER = require('@/assets/Badges/Sun Gazer.png');
+const BADGE_FOCUS_KING = require('@/assets/Badges/Focus King.png');
+const BADGE_DEEP_SLEEPER = require('@/assets/Badges/Deep Sleeper.png');
+const BADGE_BOOK_WORM = require('@/assets/Badges/Book Worm.png');
+
 const LOCK_ICON = require('@/assets/images/Lock icon.png');
+
+const CHALLENGE_ICONS: Record<string, any> = {
+  '1': ICON_FIRST_LIGHT,
+  '2': ICON_NO_REELS_NIGHT,
+  '3': ICON_TWO_DAY_STREAK,
+  '4': ICON_SCROLL_FAST,
+  '5': ICON_THREE_DAY_STREAK,
+  '6': ICON_MORNING_MUTE,
+  '7': ICON_FIVE_DAY_GUARDIAN,
+  '8': ICON_WEEKEND_WARRIOR,
+  '9': ICON_WEEK_OF_FOCUS,
+  '10': ICON_PET_PROTECTOR,
+};
+
+const BADGE_UNLOCK_CONDITIONS: Record<string, string> = {
+  '1': 'Complete 2 challenges',
+  '2': 'Complete 4 challenges',
+  '3': 'Complete 6 challenges',
+  '4': 'Complete all 10 challenges',
+};
 
 type AnimState = 'happy' | 'sick' | 'dead';
 
@@ -119,36 +161,85 @@ function PixelBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-function ChallengeCard({ challenge }: { challenge: ChallengeView }) {
-  const isLocked = challenge.status === 'locked';
-  const isCompleted = challenge.status === 'completed';
+// ─────────────────────────────────────────────
+// Pet animation isolated — stops badge/challenge flicker
+// ─────────────────────────────────────────────
+function PetDisplay({
+  petType,
+  health,
+  sizePercent = '85%',
+}: {
+  petType?: string;
+  health: number;
+  sizePercent?: DimensionValue;
+}) {
+  const [animFrame, setAnimFrame] = useState(0);
+  const [showRare, setShowRare] = useState(false);
+
+  const animState = getAnimState(health);
+  const frames = PET_FRAMES[petType ?? '']?.[animState] ?? PET_FRAMES.Nugget.happy;
+
+  const petImage =
+    showRare && petType === 'Spino' && animState === 'happy'
+      ? SPINO_RARE
+      : frames[animFrame % frames.length];
+
+  useEffect(() => {
+    setAnimFrame(0);
+    setShowRare(false);
+
+    if (animState !== 'happy' || frames.length < 2) return;
+
+    const id = setInterval(() => {
+      if (petType === 'Spino' && Math.random() < 0.05) {
+        setShowRare(true);
+        setTimeout(() => setShowRare(false), 4000);
+        return;
+      }
+
+      setShowRare(false);
+      setAnimFrame((prev) => (prev + 1) % frames.length);
+    }, 2000);
+
+    return () => clearInterval(id);
+  }, [petType, animState, frames.length]);
 
   return (
-    <View
-      style={[
-        styles.powerCard,
-        isCompleted && {
-          backgroundColor: '#FFF8E7',
-          borderColor: '#E8B923',
-          borderWidth: 1.5,
-        },
-      ]}
+    <Image
+      source={petImage}
+      style={{ width: sizePercent, height: sizePercent }}
+      contentFit="contain"
+    />
+  );
+}
+
+// ─────────────────────────────────────────────
+// Challenge Card
+// ─────────────────────────────────────────────
+const ChallengeCard = React.memo(function ChallengeCard({
+  challenge,
+  onPress,
+}: {
+  challenge: ChallengeView;
+  onPress: () => void;
+}) {
+  const isLocked = challenge.status === 'locked';
+  const isCompleted = challenge.status === 'completed';
+  const icon = CHALLENGE_ICONS[challenge.id];
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.powerCard, isCompleted && styles.powerCardCompleted]}
     >
       <View style={styles.powerLeft}>
-        <View
-          style={[
-            styles.powerIcon,
-            isCompleted && { backgroundColor: '#E8B923' },
-          ]}
-        >
+        <View style={[styles.powerIcon, styles.powerIconNeutral]}>
           {isLocked ? (
             <Image source={LOCK_ICON} style={{ width: 28, height: 28 }} contentFit="contain" />
-          ) : isCompleted ? (
-            <Ionicons name="checkmark" size={18} color="#fff" />
-          ) : challenge.id === '1' ? (
-            <Image source={FIRST_LIGHT_ICON} style={{ width: 28, height: 28 }} contentFit="contain" />
+          ) : icon ? (
+            <Image source={icon} style={{ width: 28, height: 28 }} contentFit="contain" />
           ) : (
-            <Text style={styles.powerXp}>{challenge.xp}</Text>
+            <Ionicons name="checkmark" size={18} color="#1a1a1a" />
           )}
         </View>
 
@@ -161,12 +252,162 @@ function ChallengeCard({ challenge }: { challenge: ChallengeView }) {
           </Text>
         </View>
       </View>
-      <Text style={[styles.powerChevron, isCompleted && { color: '#E8B923' }]}>
+      <Text style={[styles.powerChevron, isCompleted && styles.powerChevronCompleted]}>
         {isCompleted ? '✓' : '›'}
       </Text>
-    </View>
+    </Pressable>
+  );
+});
+
+function ChallengeDetailModal({
+  challenge,
+  visible,
+  onClose,
+}: {
+  challenge: ChallengeView | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  if (!challenge) return null;
+
+  const isLocked = challenge.status === 'locked';
+  const isCompleted = challenge.status === 'completed';
+  const icon = CHALLENGE_ICONS[challenge.id];
+
+  const statusLabel = isCompleted ? 'Completed' : isLocked ? 'Locked' : 'Available';
+  const statusColor = isCompleted ? '#C4A35A' : isLocked ? '#999' : '#16a34a';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.challengeModalOverlay} onPress={onClose}>
+        <Pressable style={styles.challengeModalCard} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.challengeModalIconWrap}>
+            {isLocked ? (
+              <Image source={LOCK_ICON} style={{ width: 36, height: 36 }} contentFit="contain" />
+            ) : icon ? (
+              <Image source={icon} style={{ width: 36, height: 36 }} contentFit="contain" />
+            ) : null}
+          </View>
+
+          <Text style={styles.challengeModalTitle}>{challenge.name}</Text>
+          <Text style={[styles.challengeModalStatus, { color: statusColor }]}>{statusLabel}</Text>
+
+          <Text style={styles.challengeModalDescription}>{challenge.description}</Text>
+
+          <View style={styles.challengeModalMetaRow}>
+            <View style={styles.challengeModalMetaPill}>
+              <Text style={styles.challengeModalMetaText}>{challenge.goal}</Text>
+            </View>
+            <View style={styles.challengeModalMetaPill}>
+              <Text style={styles.challengeModalMetaText}>{challenge.type}</Text>
+            </View>
+          </View>
+
+          <Pressable style={styles.challengeModalClose} onPress={onClose}>
+            <Text style={styles.challengeModalCloseText}>Got it</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
+
+// ─────────────────────────────────────────────
+// Badge Card
+// ─────────────────────────────────────────────
+const BadgeCard = React.memo(function BadgeCard({
+  id,
+  name,
+  icon,
+  unlocked,
+  landscape,
+}: {
+  id: string;
+  name: string;
+  icon: any;
+  unlocked: boolean;
+  landscape: boolean;
+}) {
+  const flipAnim = useRef(new Animated.Value(0)).current;
+  const [flipped, setFlipped] = useState(false);
+
+  const flip = () => {
+    Animated.spring(flipAnim, {
+      toValue: flipped ? 0 : 1,
+      friction: 8,
+      tension: 10,
+      useNativeDriver: true,
+    }).start();
+    setFlipped(!flipped);
+  };
+
+  const frontInterpolate = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  const backInterpolate = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['180deg', '360deg'],
+  });
+
+  const cardStyle = [
+    landscape ? styles.badgeCardLandscape : styles.badgeCard,
+    unlocked && styles.badgeCardUnlocked,
+  ];
+
+  return (
+    <Pressable onPress={flip} style={{ flex: 1 }}>
+      <Animated.View
+        style={[
+          cardStyle,
+          {
+            transform: [{ perspective: 1000 }, { rotateY: frontInterpolate }],
+            backfaceVisibility: 'hidden',
+            position: flipped ? 'absolute' : 'relative',
+            width: '100%',
+          },
+        ]}
+      >
+        {unlocked ? (
+          <Image
+            source={icon}
+            style={{ width: landscape ? 34 : 42, height: landscape ? 34 : 42 }}
+            contentFit="contain"
+          />
+        ) : (
+          <Image
+            source={LOCK_ICON}
+            style={{ width: landscape ? 34 : 42, height: landscape ? 34 : 42 }}
+            contentFit="contain"
+          />
+        )}
+        <Text style={landscape ? styles.badgeNameLandscape : styles.badgeName} numberOfLines={1}>
+          {name}
+        </Text>
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          cardStyle,
+          {
+            transform: [{ perspective: 1000 }, { rotateY: backInterpolate }],
+            backfaceVisibility: 'hidden',
+            position: flipped ? 'relative' : 'absolute',
+            width: '100%',
+            top: 0,
+            left: 0,
+          },
+        ]}
+      >
+        <Text style={styles.badgeBackLabel}>UNLOCK</Text>
+        <Text style={landscape ? styles.badgeBackTextLandscape : styles.badgeBackText}>
+          {BADGE_UNLOCK_CONDITIONS[id]}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+});
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -176,10 +417,10 @@ export default function HomeScreen() {
 
   const [pet, setPet] = useState<PetData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [animFrame, setAnimFrame] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [challengesExpanded, setChallengesExpanded] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeView | null>(null);
 
   const [health, setHealth] = useState(100);
   const [happiness, setHappiness] = useState(100);
@@ -195,20 +436,21 @@ export default function HomeScreen() {
   const completedCount = challengeViews.filter((c) => c.status === 'completed').length;
   const unlockedBadgeCount = badgeUnlockCount(completedCount);
 
-  const badges = [
-    { id: '1', name: 'Sun Gazer', type: 'sun' as const, unlocked: unlockedBadgeCount >= 1 },
-    { id: '2', name: 'Focus King', type: 'focus' as const, unlocked: unlockedBadgeCount >= 2 },
-    { id: '3', name: 'Deep Sleeper', type: 'sleep' as const, unlocked: unlockedBadgeCount >= 3 },
-    { id: '4', name: 'Bookworm', type: 'book' as const, unlocked: unlockedBadgeCount >= 4 },
-  ];
+  const badges = useMemo(
+    () => [
+      { id: '1', name: 'Sun Gazer', icon: BADGE_SUN_GAZER, unlocked: unlockedBadgeCount >= 1 },
+      { id: '2', name: 'Focus King', icon: BADGE_FOCUS_KING, unlocked: unlockedBadgeCount >= 2 },
+      { id: '3', name: 'Deep Sleeper', icon: BADGE_DEEP_SLEEPER, unlocked: unlockedBadgeCount >= 3 },
+      { id: '4', name: 'Book Worm', icon: BADGE_BOOK_WORM, unlocked: unlockedBadgeCount >= 4 },
+    ],
+    [unlockedBadgeCount]
+  );
 
-  const visibleChallenges = challengesExpanded
-    ? challengeViews
-    : challengeViews.slice(0, 4);
+  const visibleChallenges = useMemo(
+    () => (challengesExpanded ? challengeViews : challengeViews.slice(0, 4)),
+    [challengesExpanded, challengeViews]
+  );
 
-  // ─────────────────────────────────────────────
-  // CORE: Load pet + real usage + challenges
-  // ─────────────────────────────────────────────
   const loadPetAndUsage = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -263,7 +505,6 @@ export default function HomeScreen() {
       setScrollMinutes(next.totalScrollToday);
       setScrollLimit(next.scrollLimit);
 
-      // ── Challenges (strict sequential evaluation) ──
       let challengeState = raw.challenges ?? emptyChallengeState();
 
       if (granted) {
@@ -281,7 +522,6 @@ export default function HomeScreen() {
 
       setChallengeViews(buildChallengeViews(challengeState));
 
-      // ── Usage history (UTC keys for graphs) ──
       const todayKey = getUTCDateKey();
       const existingHistory: Record<string, number> =
         userDoc.data()?.usageHistory ?? {};
@@ -332,21 +572,6 @@ export default function HomeScreen() {
     }, [loadPetAndUsage])
   );
 
-  const animState = getAnimState(health);
-  const frames = PET_FRAMES[pet?.type ?? '']?.[animState] ?? PET_FRAMES.Nugget.happy;
-  const petImage = frames[animFrame % frames.length];
-
-  useEffect(() => {
-    setAnimFrame(0);
-    if (animState !== 'happy' || frames.length < 2) return;
-
-    const id = setInterval(() => {
-      setAnimFrame((prev) => (prev + 1) % frames.length);
-    }, 2000);
-
-    return () => clearInterval(id);
-  }, [pet?.type, animState, frames.length]);
-
   const handleLogout = () => {
     setMenuOpen(false);
     Alert.alert('Log out', 'Are you sure you want to log out?', [
@@ -393,18 +618,8 @@ export default function HomeScreen() {
 
   const LayToRestButton = () =>
     health <= 0 ? (
-      <Pressable
-        onPress={() => router.push('/rest')}
-        style={{
-          marginTop: 10,
-          backgroundColor: '#B83F3F',
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          borderRadius: 12,
-          alignSelf: 'center',
-        }}
-      >
-        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>Lay to rest</Text>
+      <Pressable onPress={() => router.push('/rest')} style={styles.layToRestButton}>
+        <Text style={styles.layToRestText}>Lay to rest</Text>
       </Pressable>
     ) : null;
 
@@ -412,28 +627,11 @@ export default function HomeScreen() {
     if (hasUsagePermissionState !== false) return null;
 
     return (
-      <Pressable
-        onPress={handleRequestPermission}
-        style={{
-          backgroundColor: '#FFF1F2',
-          borderWidth: 1.5,
-          borderColor: '#FECACA',
-          borderRadius: 14,
-          padding: 14,
-          marginBottom: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
+      <Pressable onPress={handleRequestPermission} style={styles.permissionBanner}>
         <Ionicons name="warning" size={22} color="#B83F3F" />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: '800', fontSize: 14, color: '#1a1a1a' }}>
-            Enable Usage Access
-          </Text>
-          <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
-            Required to track real scroll time
-          </Text>
+          <Text style={styles.permissionTitle}>Enable Usage Access</Text>
+          <Text style={styles.permissionSubtitle}>Required to track real scroll time</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color="#B83F3F" />
       </Pressable>
@@ -442,51 +640,34 @@ export default function HomeScreen() {
 
   const HeaderMenu = () => (
     <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' }} onPress={() => setMenuOpen(false)}>
-        <View
-          style={{
-            position: 'absolute',
-            top: 56,
-            right: isLandscape ? 24 : 18,
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            borderWidth: 1.5,
-            borderColor: '#f0e6e0',
-            minWidth: 180,
-            paddingVertical: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.12,
-            shadowRadius: 16,
-            elevation: 8,
-          }}
-        >
+      <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
+        <View style={[styles.menuCard, { right: isLandscape ? 24 : 18 }]}>
           <Pressable
-            style={{ paddingHorizontal: 16, paddingVertical: 14 }}
+            style={styles.menuItem}
             onPress={() => {
               setMenuOpen(false);
               Alert.alert('Profile', 'Profile screen coming soon.');
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1a1a1a' }}>Profile</Text>
+            <Text style={styles.menuItemText}>Profile</Text>
           </Pressable>
 
-          <View style={{ height: 1, backgroundColor: '#f0e6e0', marginHorizontal: 12 }} />
+          <View style={styles.menuDivider} />
 
           <Pressable
-            style={{ paddingHorizontal: 16, paddingVertical: 14 }}
+            style={styles.menuItem}
             onPress={() => {
               setMenuOpen(false);
               Alert.alert('Settings', 'Settings screen coming soon.');
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1a1a1a' }}>Settings</Text>
+            <Text style={styles.menuItemText}>Settings</Text>
           </Pressable>
 
-          <View style={{ height: 1, backgroundColor: '#f0e6e0', marginHorizontal: 12 }} />
+          <View style={styles.menuDivider} />
 
-          <Pressable style={{ paddingHorizontal: 16, paddingVertical: 14 }} onPress={handleLogout}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#B83F3F' }}>Log out</Text>
+          <Pressable style={styles.menuItem} onPress={handleLogout}>
+            <Text style={styles.menuItemTextDanger}>Log out</Text>
           </Pressable>
         </View>
       </Pressable>
@@ -498,22 +679,19 @@ export default function HomeScreen() {
       <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>CHALLENGES</Text>
       <View style={landscape ? styles.powerListLandscape : styles.powerList}>
         {visibleChallenges.map((c) => (
-          <ChallengeCard key={c.id} challenge={c} />
+          <ChallengeCard
+            key={c.id}
+            challenge={c}
+            onPress={() => setSelectedChallenge(c)}
+          />
         ))}
       </View>
       {challengeViews.length > 4 && (
         <Pressable
           onPress={() => setChallengesExpanded((prev) => !prev)}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            paddingVertical: 10,
-            marginBottom: landscape ? 22 : 28,
-          }}
+          style={[styles.expandButton, { marginBottom: landscape ? 22 : 28 }]}
         >
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#B83F3F' }}>
+          <Text style={styles.expandButtonText}>
             {challengesExpanded
               ? 'Show less'
               : `Show all ${challengeViews.length} challenges`}
@@ -533,26 +711,14 @@ export default function HomeScreen() {
       <Text style={landscape ? styles.sectionTitleLandscape : styles.sectionTitle}>BADGES</Text>
       <View style={landscape ? styles.badgesRowLandscape : styles.badgesRow}>
         {badges.map((b) => (
-          <View key={b.id} style={landscape ? styles.badgeCardLandscape : styles.badgeCard}>
-            {!b.unlocked ? (
-              <Image
-                source={LOCK_ICON}
-                style={{ width: landscape ? 34 : 42, height: landscape ? 34 : 42 }}
-                contentFit="contain"
-              />
-            ) : b.type === 'sun' ? (
-              <Image
-                source={SUN_BADGE}
-                style={{ width: landscape ? 34 : 42, height: landscape ? 34 : 42 }}
-                contentFit="contain"
-              />
-            ) : (
-              <BadgeIcon size={landscape ? 34 : 42} type={b.type} />
-            )}
-            <Text style={landscape ? styles.badgeNameLandscape : styles.badgeName} numberOfLines={1}>
-              {b.name}
-            </Text>
-          </View>
+          <BadgeCard
+            key={b.id}
+            id={b.id}
+            name={b.name}
+            icon={b.icon}
+            unlocked={b.unlocked}
+            landscape={landscape}
+          />
         ))}
       </View>
     </>
@@ -571,25 +737,21 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.landscapeSafe} edges={['top', 'left', 'right']}>
         <HeaderMenu />
+        <ChallengeDetailModal
+          challenge={selectedChallenge}
+          visible={!!selectedChallenge}
+          onClose={() => setSelectedChallenge(null)}
+        />
         <View style={styles.landscapeRow}>
           <View style={styles.landscapePetCard}>
-            <View
-              style={{
-                width: '100%',
-                paddingHorizontal: 12,
-                flexDirection: 'row',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
+            <View style={styles.landscapeHeaderRow}>
               <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
                 <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
               </Pressable>
             </View>
 
             <View style={styles.landscapePetCircle}>
-              <Image source={petImage} style={{ width: '86%', height: '86%' }} contentFit="contain" />
+              <PetDisplay petType={pet?.type} health={health} sizePercent="86%" />
             </View>
 
             <Text style={styles.landscapePetName}>{petName}</Text>
@@ -669,16 +831,21 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.portraitSafe} edges={['top']}>
       <HeaderMenu />
+      <ChallengeDetailModal
+        challenge={selectedChallenge}
+        visible={!!selectedChallenge}
+        onClose={() => setSelectedChallenge(null)}
+      />
       <View style={{ flex: 1 }}>
         <View style={styles.portraitHero}>
-          <View style={[styles.portraitHeaderRow, { justifyContent: 'flex-end' }]}>
+          <View style={styles.portraitHeaderRow}>
             <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
               <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
             </Pressable>
           </View>
 
           <View style={styles.portraitPetCircle}>
-            <Image source={petImage} style={{ width: '85%', height: '85%' }} contentFit="contain" />
+            <PetDisplay petType={pet?.type} health={health} sizePercent="85%" />
           </View>
 
           <Text style={styles.portraitPetName}>{petName}</Text>

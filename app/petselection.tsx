@@ -1,3 +1,4 @@
+import { emptyChallengeState } from '@/services/challenges';
 import { auth, db } from '@/services/firebase';
 import { createDefaultHealth } from '@/services/health';
 import { styles } from '@/styles/petselection.styles';
@@ -27,6 +28,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const SPINO_RARE = require('@/assets/pets/Spinosaurus/Easter Egg.gif');
 
 const PETS = [
   {
@@ -78,6 +81,7 @@ export default function PetSelectScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [happyFrame, setHappyFrame] = useState(0);
+  const [showRare, setShowRare] = useState(false);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -89,17 +93,27 @@ export default function PetSelectScreen() {
   const cinematicOpacity = useSharedValue(0);
 
   const currentPet = PETS[activeIndex];
-  const currentImage =
-    currentPet.images.happy[happyFrame % currentPet.images.happy.length];
 
-  // Rotate idle ↔ walk for pets with more than one happy frame (Spino)
+  const currentImage =
+    showRare && currentPet.name === 'Spino'
+      ? SPINO_RARE
+      : currentPet.images.happy[happyFrame % currentPet.images.happy.length];
+
   useEffect(() => {
     setHappyFrame(0);
+    setShowRare(false);
 
     const frames = currentPet.images.happy;
     if (frames.length < 2) return;
 
     const id = setInterval(() => {
+      if (currentPet.name === 'Spino' && Math.random() < 0.05) {
+        setShowRare(true);
+        setTimeout(() => setShowRare(false), 4000);
+        return;
+      }
+
+      setShowRare(false);
       setHappyFrame((prev) => (prev + 1) % frames.length);
     }, 2000);
 
@@ -150,6 +164,7 @@ export default function PetSelectScreen() {
             title: currentPet.title,
             createdAt: new Date().toISOString(),
             ...createDefaultHealth(),
+            challenges: emptyChallengeState(), // reset challenges for new pet
           },
         },
         { merge: true }

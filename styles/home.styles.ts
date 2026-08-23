@@ -30,13 +30,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
-  landscapeLevel: {
-    fontFamily: 'PressStart2P_400Regular',
-    fontSize: 11,
-    color: '#1a1a1a',
-    marginBottom: 14,
-    opacity: 0.85,
-  },
   landscapePetCircle: {
     width: 176,
     height: 176,
@@ -65,6 +58,14 @@ export const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 24,
   },
+  landscapeHeaderRow: {
+    width: '100%',
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
 
   // ========== PORTRAIT ==========
   portraitSafe: {
@@ -81,22 +82,9 @@ export const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 22,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginBottom: 18,
-  },
-  portraitLevel: {
-    fontFamily: 'PressStart2P_400Regular',
-    fontSize: 12,
-    color: '#1a1a1a',
-    opacity: 0.9,
-  },
-  portraitDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF6B6B',
-    opacity: 0.7,
   },
   portraitPetCircle: {
     width: 232,
@@ -264,6 +252,7 @@ export const styles = StyleSheet.create({
     color: '#999',
   },
 
+  // Challenges
   powerList: {
     gap: 11,
     marginBottom: 28,
@@ -283,16 +272,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#f0e6e0',
   },
-  powerCardLandscape: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: '#FFF7F2',
+  powerCardCompleted: {
+    backgroundColor: '#FFFBF5',
+    borderColor: '#E8D5A3',
     borderWidth: 1.5,
-    borderColor: '#f0e6e0',
   },
   powerLeft: {
     flexDirection: 'row',
@@ -300,45 +283,20 @@ export const styles = StyleSheet.create({
     gap: 13,
     flex: 1,
   },
-  powerLeftLandscape: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
   powerIcon: {
     width: 40,
     height: 40,
     borderRadius: 13,
-    backgroundColor: '#238fe8',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  powerIconLandscape: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: '#E8B923',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  powerXp: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  powerXpLandscape: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#fff',
+  powerIconNeutral: {
+    backgroundColor: '#F0ECE8',
+    borderWidth: 1,
+    borderColor: '#E4DDD6',
   },
   powerTitle: {
     fontSize: 14.5,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  powerTitleLandscape: {
-    fontSize: 13.5,
     fontWeight: '700',
     color: '#1a1a1a',
   },
@@ -348,21 +306,15 @@ export const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
-  powerMetaLandscape: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#999',
-    marginTop: 2,
-  },
   powerChevron: {
     color: '#C4B5A8',
     fontSize: 18,
   },
-  powerChevronLandscape: {
-    color: '#C4B5A8',
-    fontSize: 17,
+  powerChevronCompleted: {
+    color: '#C4A35A',
   },
 
+  // Badges
   badgesRow: {
     flexDirection: 'row',
     gap: 11,
@@ -381,6 +333,8 @@ export const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#F0E6E0',
     gap: 8,
+    minHeight: 96,
+    justifyContent: 'center',
   },
   badgeCardLandscape: {
     flex: 1,
@@ -391,6 +345,13 @@ export const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#F0E6E0',
     gap: 7,
+    minHeight: 88,
+    justifyContent: 'center',
+  },
+  badgeCardUnlocked: {
+    backgroundColor: '#FFFBF0',
+    borderColor: '#E8D5A3',
+    borderWidth: 1.5,
   },
   badgeName: {
     fontSize: 11,
@@ -403,5 +364,202 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#555',
     textAlign: 'center',
+  },
+  badgeBackText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#5A4A3A',
+    textAlign: 'center',
+    lineHeight: 15,
+    paddingHorizontal: 4,
+  },
+  badgeBackTextLandscape: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#5A4A3A',
+    textAlign: 'center',
+    lineHeight: 13,
+    paddingHorizontal: 2,
+  },
+  badgeBackLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#C4A35A',
+    textAlign: 'center',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+
+  // Expand / collapse
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+  },
+  expandButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B83F3F',
+  },
+
+  // Permission banner
+  permissionBanner: {
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  permissionTitle: {
+    fontWeight: '800',
+    fontSize: 14,
+    color: '#1a1a1a',
+  },
+  permissionSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+
+  // Lay to rest
+  layToRestButton: {
+    marginTop: 10,
+    backgroundColor: '#B83F3F',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignSelf: 'center',
+  },
+  layToRestText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+  // Header menu
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  menuCard: {
+    position: 'absolute',
+    top: 56,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+    minWidth: 180,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  menuItemTextDanger: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#B83F3F',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#f0e6e0',
+    marginHorizontal: 12,
+  },
+
+  // Challenge detail modal
+  challengeModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  challengeModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+    padding: 24,
+    alignItems: 'center',
+  },
+  challengeModalIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#F0ECE8',
+    borderWidth: 1,
+    borderColor: '#E4DDD6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  challengeModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  challengeModalStatus: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  challengeModalDescription: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  challengeModalMetaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  challengeModalMetaPill: {
+    backgroundColor: '#FFF7F2',
+    borderWidth: 1,
+    borderColor: '#f0e6e0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  challengeModalMetaText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+  },
+  challengeModalClose: {
+    backgroundColor: '#B83F3F',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    width: '100%',
+    alignItems: 'center',
+  },
+  challengeModalCloseText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });
