@@ -1,9 +1,7 @@
 import {
-    endOfLocalDay,
     getMinutesInRange,
     REELS_PACKAGES,
     SOCIAL_PACKAGES,
-    startOfLocalDay
 } from '@/services/usage';
 
 export type ChallengeStatus = 'locked' | 'available' | 'completed';
@@ -38,7 +36,7 @@ export const CHALLENGE_DEFS: ChallengeDef[] = [
   {
     id: '2',
     name: 'No Reels Night',
-    description: 'Zero Instagram / TikTok between 21:00 – 07:00',
+    description: 'Zero Instagram / TikTok between 21:00 – 07:00 UTC',
     type: 'daily',
     goal: 'Clean night',
     xp: 50,
@@ -70,7 +68,7 @@ export const CHALLENGE_DEFS: ChallengeDef[] = [
   {
     id: '6',
     name: 'Morning Mute',
-    description: 'No social apps before 10:00',
+    description: 'No social apps before 10:00 UTC',
     type: 'daily',
     goal: 'Clean morning',
     xp: 45,
@@ -86,7 +84,7 @@ export const CHALLENGE_DEFS: ChallengeDef[] = [
   {
     id: '8',
     name: 'Weekend Warrior',
-    description: 'Both Saturday and Sunday under limit',
+    description: 'Both Saturday and Sunday under limit (UTC)',
     type: 'streak',
     goal: 'Full weekend',
     xp: 100,
@@ -109,45 +107,65 @@ export const CHALLENGE_DEFS: ChallengeDef[] = [
   },
 ];
 
-function sameLocalDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
+// ─────────────────────────────────────────────
+// UTC day helpers
+// ─────────────────────────────────────────────
 
-function addLocalDays(date: Date, days: number): Date {
+function startOfUTCDay(date: Date = new Date()): Date {
   const d = new Date(date);
-  d.setDate(d.getDate() + days);
+  d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
-function daysAliveLocal(createdAt: string, now: Date): number {
+function endOfUTCDay(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+
+function sameUTCDay(a: Date, b: Date): boolean {
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
+function addUTCDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function daysAliveUTC(createdAt: string, now: Date): number {
   const created = new Date(createdAt);
-  const start = startOfLocalDay(created);
-  const end = startOfLocalDay(now);
+  const start = startOfUTCDay(created);
+  const end = startOfUTCDay(now);
   const ms = end.getTime() - start.getTime();
   return Math.floor(ms / (24 * 60 * 60 * 1000)) + 1;
 }
 
-/** Finished local day only — never "today" while it's still in progress */
+/** Finished UTC day only — never "today" while it's still in progress */
 async function isHealthyFinishedDay(
   day: Date,
   scrollLimit: number,
   createdAt: string,
   now: Date
 ): Promise<boolean> {
-  const dayStart = startOfLocalDay(day);
-  const dayEnd = endOfLocalDay(day);
+  const dayStart = startOfUTCDay(day);
+  const dayEnd = endOfUTCDay(day);
 
   // Day must be fully over
   if (dayEnd.getTime() > now.getTime()) return false;
 
   // Creation day never counts
-  if (sameLocalDay(dayStart, new Date(createdAt))) return false;
+  if (sameUTCDay(dayStart, new Date(createdAt))) return false;
 
-  const minutes = await getMinutesInRange(dayStart.getTime(), dayEnd.getTime(), SOCIAL_PACKAGES);
+  const minutes = await getMinutesInRange(
+    dayStart.getTime(),
+    dayEnd.getTime(),
+    SOCIAL_PACKAGES
+  );
   return minutes <= scrollLimit;
 }
 
@@ -157,42 +175,43 @@ async function hasConsecutiveHealthyDays(
   createdAt: string,
   now: Date
 ): Promise<boolean> {
-  // Ending at yesterday (last finished day)
+  // Ending at yesterday (last finished UTC day)
   for (let i = 1; i <= count; i++) {
-    const day = addLocalDays(startOfLocalDay(now), -i);
+    const day = addUTCDays(startOfUTCDay(now), -i);
     const ok = await isHealthyFinishedDay(day, scrollLimit, createdAt, now);
     if (!ok) return false;
   }
   return true;
 }
 
-/** Most recently fully finished weekend (Sat+Sun both in the past) */
+/** Most recently fully finished weekend (Sat+Sun both in the past, UTC) */
 function lastFinishedWeekend(now: Date): { sat: Date; sun: Date } | null {
-  const today = startOfLocalDay(now);
-  const dow = today.getDay(); // 0 Sun ... 6 Sat
+  const today = startOfUTCDay(now);
+  const dow = today.getUTCDay(); // 0 Sun ... 6 Sat
 
   // Days since last Sunday
   const daysSinceSunday = dow === 0 ? 7 : dow;
-  const lastSunday = addLocalDays(today, -daysSinceSunday);
-  const lastSaturday = addLocalDays(lastSunday, -1);
+  const lastSunday = addUTCDays(today, -daysSinceSunday);
+  const lastSaturday = addUTCDays(lastSunday, -1);
 
-  // Both must be finished (Sunday end < now) — true if lastSunday is before today
-  if (endOfLocalDay(lastSunday).getTime() > now.getTime()) return null;
+  // Both must be finished
+  if (endOfUTCDay(lastSunday).getTime() > now.getTime()) return null;
 
   return { sat: lastSaturday, sun: lastSunday };
 }
 
 async function checkNoReelsNight(now: Date): Promise<boolean> {
-  // Only after 07:00 local so the window is complete
-  if (now.getHours() < 7) return false;
+  // Only after 07:00 UTC so the window is complete
+  if (now.getUTCHours() < 7) return false;
 
-  const todayStart = startOfLocalDay(now);
+  const todayStart = startOfUTCDay(now);
+
   const windowStart = new Date(todayStart);
-  windowStart.setDate(windowStart.getDate() - 1);
-  windowStart.setHours(21, 0, 0, 0);
+  windowStart.setUTCDate(windowStart.getUTCDate() - 1);
+  windowStart.setUTCHours(21, 0, 0, 0);
 
   const windowEnd = new Date(todayStart);
-  windowEnd.setHours(7, 0, 0, 0);
+  windowEnd.setUTCHours(7, 0, 0, 0);
 
   if (windowEnd.getTime() > now.getTime()) return false;
 
@@ -206,11 +225,13 @@ async function checkNoReelsNight(now: Date): Promise<boolean> {
 
 async function checkMorningMute(now: Date): Promise<boolean> {
   // Evaluate yesterday's morning (always a finished window)
-  const yesterday = addLocalDays(startOfLocalDay(now), -1);
+  const yesterday = addUTCDays(startOfUTCDay(now), -1);
+
   const windowStart = new Date(yesterday);
-  windowStart.setHours(0, 0, 0, 0);
+  windowStart.setUTCHours(0, 0, 0, 0);
+
   const windowEnd = new Date(yesterday);
-  windowEnd.setHours(10, 0, 0, 0);
+  windowEnd.setUTCHours(10, 0, 0, 0);
 
   const minutes = await getMinutesInRange(
     windowStart.getTime(),
@@ -233,7 +254,7 @@ async function canComplete(
 
   switch (id) {
     case '1': {
-      const yesterday = addLocalDays(startOfLocalDay(now), -1);
+      const yesterday = addUTCDays(startOfUTCDay(now), -1);
       return isHealthyFinishedDay(yesterday, scrollLimit, createdAt, now);
     }
     case '2':
@@ -241,11 +262,11 @@ async function canComplete(
     case '3':
       return hasConsecutiveHealthyDays(2, scrollLimit, createdAt, now);
     case '4': {
-      const yesterday = addLocalDays(startOfLocalDay(now), -1);
-      const dayStart = startOfLocalDay(yesterday);
-      const dayEnd = endOfLocalDay(yesterday);
+      const yesterday = addUTCDays(startOfUTCDay(now), -1);
+      const dayStart = startOfUTCDay(yesterday);
+      const dayEnd = endOfUTCDay(yesterday);
       if (dayEnd.getTime() > now.getTime()) return false;
-      if (sameLocalDay(dayStart, new Date(createdAt))) return false;
+      if (sameUTCDay(dayStart, new Date(createdAt))) return false;
       const minutes = await getMinutesInRange(
         dayStart.getTime(),
         dayEnd.getTime(),
@@ -262,14 +283,24 @@ async function canComplete(
     case '8': {
       const weekend = lastFinishedWeekend(now);
       if (!weekend) return false;
-      const satOk = await isHealthyFinishedDay(weekend.sat, scrollLimit, createdAt, now);
-      const sunOk = await isHealthyFinishedDay(weekend.sun, scrollLimit, createdAt, now);
+      const satOk = await isHealthyFinishedDay(
+        weekend.sat,
+        scrollLimit,
+        createdAt,
+        now
+      );
+      const sunOk = await isHealthyFinishedDay(
+        weekend.sun,
+        scrollLimit,
+        createdAt,
+        now
+      );
       return satOk && sunOk;
     }
     case '9':
       return hasConsecutiveHealthyDays(7, scrollLimit, createdAt, now);
     case '10':
-      return health > 0 && daysAliveLocal(createdAt, now) >= 14;
+      return health > 0 && daysAliveUTC(createdAt, now) >= 14;
     default:
       return false;
   }
@@ -318,12 +349,16 @@ export async function evaluateChallenges(input: {
   }
 
   return {
-    completedIds: CHALLENGE_DEFS.map((c) => c.id).filter((id) => completed.has(id)),
+    completedIds: CHALLENGE_DEFS.map((c) => c.id).filter((id) =>
+      completed.has(id)
+    ),
     lastEvaluatedAt: now.toISOString(),
   };
 }
 
-export function buildChallengeViews(state: ChallengeState | undefined): ChallengeView[] {
+export function buildChallengeViews(
+  state: ChallengeState | undefined
+): ChallengeView[] {
   const completed = new Set(state?.completedIds ?? []);
 
   return CHALLENGE_DEFS.map((def, index) => {
