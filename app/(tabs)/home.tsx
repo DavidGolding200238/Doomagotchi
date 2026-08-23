@@ -578,6 +578,16 @@ export default function HomeScreen() {
     loadPetAndUsage();
   }, [loadPetAndUsage]);
 
+  useEffect(() => {
+  if (!user) return;
+
+  const id = setInterval(() => {
+    loadPetAndUsage();
+  }, 45_000); 
+
+  return () => clearInterval(id);
+}, [user, loadPetAndUsage]);
+
   useFocusEffect(
     useCallback(() => {
       loadPetAndUsage();

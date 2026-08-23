@@ -26,7 +26,6 @@ const DEAD_IMAGE: Record<string, any> = {
   Nugget: PANDA_DEAD,
   Waddles: DUCK_DEAD,
   Spino: SPINO_DEAD,
-  
 };
 
 function petImage(type?: string) {
@@ -117,9 +116,16 @@ export default function GraveyardScreen() {
 
             <Text style={styles.modalDate}>{selectedPet.date}</Text>
 
-            <Pressable onPress={() => setSelectedPet(null)} style={styles.modalCloseBtn}>
-              <Text style={styles.modalCloseText}>Close</Text>
-            </Pressable>
+            {/* Landscape only: circular X close button in bottom-right */}
+            {isLandscape ? (
+              <Pressable onPress={() => setSelectedPet(null)} style={styles.modalCloseBtnCircle}>
+                <Ionicons name="close" size={20} color="#fff" />
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => setSelectedPet(null)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseText}>Close</Text>
+              </Pressable>
+            )}
           </Pressable>
         </Pressable>
       </Modal>

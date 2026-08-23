@@ -47,7 +47,7 @@ function getLast7Days(): { key: string; label: string }[] {
     d.setUTCDate(d.getUTCDate() - i);
 
     result.push({
-      key: getUTCDateKey(d), // same key style as Home / Firebase
+      key: getUTCDateKey(d),
       label: labels[d.getUTCDay()],
     });
   }
@@ -132,7 +132,6 @@ export default function StatsScreen() {
         limit = pet.scrollLimit ?? 45;
         hp = pet.health ?? 100;
 
-        // Only CHECK — never auto-request
         const granted = await hasUsagePermission();
         if (granted) {
           const result = await getPetScrollMinutes(
@@ -225,6 +224,10 @@ export default function StatsScreen() {
   const maxBar = Math.max(45, ...weeklyData.map((d) => d.value), 1);
   const isHealthyWeek = todayMinutes <= scrollLimit;
 
+  // Exact same calendar width as before (portrait card width)
+  const portraitCalendarWidth = Math.min(width, height) - 36;
+  const cardsColumnWidth = 300;
+
   const statCards = [
     { label: 'DAILY AVG', value: `${todayMinutes}m`, icon: 'time-outline' },
     { label: 'WEEKLY', value: `${weeklyTotal}m`, icon: 'trending-down' },
@@ -245,33 +248,23 @@ export default function StatsScreen() {
   // ==================== LANDSCAPE ====================
   if (isLandscape) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: '#FFF9F5' }}>
-          <View style={styles.landscapeRow}>
-            <View style={styles.landscapeLeft}>
-              <View style={styles.landscapeHeader}>
-                <Text style={styles.landscapeHeaderTitle}>LOGS & STATS</Text>
-                <Ionicons name="notifications-outline" size={20} color="#1a1a1a" />
-              </View>
-
-              
-
-              <View style={styles.landscapeStatsGrid}>
-                {statCards.map((item) => (
-                  <View key={item.label} style={styles.landscapeStatCard}>
-                    <View style={styles.landscapeStatLabelRow}>
-                      <Ionicons name={item.icon as any} size={14} color="#999" />
-                      <Text style={styles.landscapeStatLabel}>{item.label}</Text>
-                    </View>
-                    <Text style={styles.landscapeStatValue}>{item.value}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
+          {/* Centered pair — outer sides get the empty space, nothing touches screen edges */}
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              paddingTop: 20,
+              gap: 70,
+            }}
+          >
+            {/* LEFT — calendar (unchanged size) */}
             <ScrollView
-              style={styles.landscapeRightScroll}
-              contentContainerStyle={styles.landscapeRightContent}
+              style={{ width: portraitCalendarWidth, flexGrow: 0, flexShrink: 0 }}
+              contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.landscapeCard}>
@@ -374,6 +367,26 @@ export default function StatsScreen() {
                 <Text style={styles.previousLossesLink}>VIEW GRAVEYARD ›</Text>
               </Pressable>
             </ScrollView>
+
+            {/* RIGHT — header + 4 cards */}
+            <View style={{ width: cardsColumnWidth, flexGrow: 0, flexShrink: 0, gap: 12 }}>
+              <View style={styles.landscapeHeader}>
+                <Text style={styles.landscapeHeaderTitle}>LOGS & STATS</Text>
+                <Ionicons name="notifications-outline" size={20} color="#1a1a1a" />
+              </View>
+
+              <View style={styles.landscapeStatsGrid}>
+                {statCards.map((item) => (
+                  <View key={item.label} style={styles.landscapeStatCard}>
+                    <View style={styles.landscapeStatLabelRow}>
+                      <Ionicons name={item.icon as any} size={14} color="#999" />
+                      <Text style={styles.landscapeStatLabel}>{item.label}</Text>
+                    </View>
+                    <Text style={styles.landscapeStatValue}>{item.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -389,8 +402,6 @@ export default function StatsScreen() {
             <Text style={styles.portraitHeaderTitle}>LOGS & STATS</Text>
             <Ionicons name="notifications-outline" size={22} color="#1a1a1a" />
           </View>
-
-        
 
           <View style={styles.portraitCard}>
             <View style={styles.portraitCardHeader}>

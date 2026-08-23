@@ -348,4 +348,16 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
   },
+
+    modalCloseBtnCircle: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#B83F3F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
