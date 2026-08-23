@@ -145,7 +145,11 @@ function daysAliveUTC(createdAt: string, now: Date): number {
   return Math.floor(ms / (24 * 60 * 60 * 1000)) + 1;
 }
 
-/** Finished UTC day only — never "today" while it's still in progress */
+/**
+ * Returns true only if the day is fully finished,
+ * is on or after the pet was created,
+ * and the usage that day was under the limit.
+ */
 async function isHealthyFinishedDay(
   day: Date,
   scrollLimit: number,
@@ -154,12 +158,16 @@ async function isHealthyFinishedDay(
 ): Promise<boolean> {
   const dayStart = startOfUTCDay(day);
   const dayEnd = endOfUTCDay(day);
+  const petCreated = startOfUTCDay(new Date(createdAt));
 
   // Day must be fully over
   if (dayEnd.getTime() > now.getTime()) return false;
 
-  // Creation day never counts
-  if (sameUTCDay(dayStart, new Date(createdAt))) return false;
+  // Ignore any day before the pet existed
+  if (dayStart.getTime() < petCreated.getTime()) return false;
+
+  // Creation day itself never counts
+  if (sameUTCDay(dayStart, petCreated)) return false;
 
   const minutes = await getMinutesInRange(
     dayStart.getTime(),
@@ -200,11 +208,15 @@ function lastFinishedWeekend(now: Date): { sat: Date; sun: Date } | null {
   return { sat: lastSaturday, sun: lastSunday };
 }
 
-async function checkNoReelsNight(now: Date): Promise<boolean> {
+async function checkNoReelsNight(
+  now: Date,
+  createdAt: string
+): Promise<boolean> {
   // Only after 07:00 UTC so the window is complete
   if (now.getUTCHours() < 7) return false;
 
   const todayStart = startOfUTCDay(now);
+  const petCreated = startOfUTCDay(new Date(createdAt));
 
   const windowStart = new Date(todayStart);
   windowStart.setUTCDate(windowStart.getUTCDate() - 1);
@@ -215,6 +227,9 @@ async function checkNoReelsNight(now: Date): Promise<boolean> {
 
   if (windowEnd.getTime() > now.getTime()) return false;
 
+  // Window must be fully after the pet was created
+  if (windowStart.getTime() < petCreated.getTime()) return false;
+
   const minutes = await getMinutesInRange(
     windowStart.getTime(),
     windowEnd.getTime(),
@@ -223,9 +238,16 @@ async function checkNoReelsNight(now: Date): Promise<boolean> {
   return minutes === 0;
 }
 
-async function checkMorningMute(now: Date): Promise<boolean> {
+async function checkMorningMute(
+  now: Date,
+  createdAt: string
+): Promise<boolean> {
   // Evaluate yesterday's morning (always a finished window)
   const yesterday = addUTCDays(startOfUTCDay(now), -1);
+  const petCreated = startOfUTCDay(new Date(createdAt));
+
+  // Yesterday must be on or after pet creation
+  if (startOfUTCDay(yesterday).getTime() < petCreated.getTime()) return false;
 
   const windowStart = new Date(yesterday);
   windowStart.setUTCHours(0, 0, 0, 0);
@@ -258,26 +280,17 @@ async function canComplete(
       return isHealthyFinishedDay(yesterday, scrollLimit, createdAt, now);
     }
     case '2':
-      return checkNoReelsNight(now);
+      return checkNoReelsNight(now, createdAt);
     case '3':
       return hasConsecutiveHealthyDays(2, scrollLimit, createdAt, now);
     case '4': {
       const yesterday = addUTCDays(startOfUTCDay(now), -1);
-      const dayStart = startOfUTCDay(yesterday);
-      const dayEnd = endOfUTCDay(yesterday);
-      if (dayEnd.getTime() > now.getTime()) return false;
-      if (sameUTCDay(dayStart, new Date(createdAt))) return false;
-      const minutes = await getMinutesInRange(
-        dayStart.getTime(),
-        dayEnd.getTime(),
-        SOCIAL_PACKAGES
-      );
-      return minutes <= scrollLimit * 0.5;
+      return isHealthyFinishedDay(yesterday, scrollLimit * 0.5, createdAt, now);
     }
     case '5':
       return hasConsecutiveHealthyDays(3, scrollLimit, createdAt, now);
     case '6':
-      return checkMorningMute(now);
+      return checkMorningMute(now, createdAt);
     case '7':
       return hasConsecutiveHealthyDays(5, scrollLimit, createdAt, now);
     case '8': {
