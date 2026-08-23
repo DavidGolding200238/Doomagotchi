@@ -34,23 +34,11 @@ export async function setupNotifications(): Promise<boolean> {
   return finalStatus === 'granted';
 }
 
-export async function notifyPetSick(petName: string): Promise<void> {
+async function send(title: string, body: string) {
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Your pet is getting sick',
-      body: `${petName} is struggling. Put the phone down.`,
-      sound: true,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
-    },
-    trigger: null, // fire immediately
-  });
-}
-
-export async function notifyPetDead(petName: string): Promise<void> {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Your pet has died',
-      body: `${petName} didn’t make it. Open Doomagotchi.`,
+      title,
+      body,
       sound: true,
       ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
     },
@@ -58,14 +46,35 @@ export async function notifyPetDead(petName: string): Promise<void> {
   });
 }
 
-export async function notifyOverLimit(petName: string, minutes: number, limit: number): Promise<void> {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Over the limit',
-      body: `${petName} is taking damage — ${minutes}m / ${limit}m today.`,
-      sound: true,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
-    },
-    trigger: null,
-  });
+export async function notifyPetFull(petName: string) {
+  await send('Full health', `${petName} is at 100%. Keep it up.`);
+}
+
+export async function notifyPetSick(petName: string) {
+  await send('Your pet is getting sick', `${petName} is struggling. Put the phone down.`);
+}
+
+export async function notifyPetGettingSicker(petName: string, health: number) {
+  await send(
+    'Getting worse',
+    `${petName} is still taking damage — down to ${health}%.`
+  );
+}
+
+export async function notifyPetNearDeath(petName: string, health: number) {
+  await send(
+    'Near death',
+    `${petName} is almost gone (${health}%). Stop scrolling now.`
+  );
+}
+
+export async function notifyPetDead(petName: string) {
+  await send('Your pet has died', `${petName} didn’t make it. Open Doomagotchi.`);
+}
+
+export async function notifyOverLimit(petName: string, minutes: number, limit: number) {
+  await send(
+    'Over the limit',
+    `${petName} is taking damage — ${minutes}m / ${limit}m today.`
+  );
 }

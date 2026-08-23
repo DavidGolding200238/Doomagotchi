@@ -7,6 +7,9 @@ import { applyHealthTick, type PetHealthState } from '@/services/health';
 import {
     notifyOverLimit,
     notifyPetDead,
+    notifyPetFull,
+    notifyPetGettingSicker,
+    notifyPetNearDeath,
     notifyPetSick,
 } from '@/services/notifications';
 import {
@@ -16,6 +19,15 @@ import {
 } from '@/services/usage';
 
 export const BACKGROUND_HEALTH_TASK = 'doomagotchi-health-tick';
+
+export type NotifyBand =
+  | 'full'
+  | 'healthy'
+  | 'over'
+  | 'sick'
+  | 'sicker'
+  | 'near_death'
+  | 'dead';
 
 type PetData = {
   id: string;
@@ -30,26 +42,101 @@ type PetData = {
   lastScrollDate?: string;
   usageBaselineMinutes?: number;
   usageBaselineDate?: string;
-  lastNotifiedBand?: 'healthy' | 'sick' | 'dead' | 'over';
+  lastNotifiedBand?: NotifyBand;
+  lastNotifiedHealth?: number;
 };
 
-function getBand(health: number): 'healthy' | 'sick' | 'dead' {
-  if (health <= 0) return 'dead';
-  if (health < 50) return 'sick';
-  return 'healthy';
+const NEAR_DEATH_HP = 15;
+const SICKER_DROP = 15;
+
+export async function processPetNotifications(input: {
+  petName: string;
+  prevHealth: number;
+  nextHealth: number;
+  minutes: number;
+  scrollLimit: number;
+  lastNotifiedBand?: NotifyBand;
+  lastNotifiedHealth?: number;
+}): Promise<{ lastNotifiedBand: NotifyBand; lastNotifiedHealth: number }> {
+  const {
+    petName,
+    prevHealth,
+    nextHealth,
+    minutes,
+    scrollLimit,
+    lastNotifiedBand,
+    lastNotifiedHealth,
+  } = input;
+
+  let band: NotifyBand = lastNotifiedBand ?? 'healthy';
+  let notifiedHealth = lastNotifiedHealth ?? prevHealth;
+  const overLimit = minutes > scrollLimit;
+
+  if (nextHealth <= 0) {
+    if (band !== 'dead') {
+      await notifyPetDead(petName);
+      band = 'dead';
+      notifiedHealth = 0;
+    }
+    return { lastNotifiedBand: band, lastNotifiedHealth: notifiedHealth };
+  }
+
+  if (nextHealth <= NEAR_DEATH_HP) {
+    if (band !== 'near_death' && band !== 'dead') {
+      await notifyPetNearDeath(petName, nextHealth);
+      band = 'near_death';
+      notifiedHealth = nextHealth;
+    }
+    return { lastNotifiedBand: band, lastNotifiedHealth: notifiedHealth };
+  }
+
+  if (nextHealth < 50) {
+    if (band === 'healthy' || band === 'full' || band === 'over' || !lastNotifiedBand) {
+      await notifyPetSick(petName);
+      band = 'sick';
+      notifiedHealth = nextHealth;
+    } else if (
+      (band === 'sick' || band === 'sicker' || band === 'near_death') &&
+      notifiedHealth - nextHealth >= SICKER_DROP
+    ) {
+      await notifyPetGettingSicker(petName, nextHealth);
+      band = 'sicker';
+      notifiedHealth = nextHealth;
+    }
+    return { lastNotifiedBand: band, lastNotifiedHealth: notifiedHealth };
+  }
+
+  if (nextHealth >= 100) {
+    if (band !== 'full') {
+      await notifyPetFull(petName);
+      band = 'full';
+      notifiedHealth = 100;
+    }
+    return { lastNotifiedBand: band, lastNotifiedHealth: notifiedHealth };
+  }
+
+  if (overLimit && band !== 'over') {
+    await notifyOverLimit(petName, minutes, scrollLimit);
+    band = 'over';
+    notifiedHealth = nextHealth;
+    return { lastNotifiedBand: band, lastNotifiedHealth: notifiedHealth };
+  }
+
+  if (band === 'sick' || band === 'sicker' || band === 'near_death' || band === 'dead') {
+    band = 'healthy';
+    notifiedHealth = nextHealth;
+  }
+
+  return { lastNotifiedBand: band, lastNotifiedHealth: notifiedHealth };
 }
 
 TaskManager.defineTask(BACKGROUND_HEALTH_TASK, async () => {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      return BackgroundFetch.BackgroundFetchResult.NoData;
-    }
+    if (!user) return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const granted = await hasUsagePermission();
-    if (!granted) {
-      return BackgroundFetch.BackgroundFetchResult.NoData;
-    }
+    if (!granted) return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const userRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userRef);
@@ -61,13 +148,12 @@ TaskManager.defineTask(BACKGROUND_HEALTH_TASK, async () => {
     const raw = userDoc.data().pet as PetData;
     const petName = raw.name || 'Your pet';
 
-    // Already dead — only notify once
     if ((raw.health ?? 100) <= 0) {
       if (raw.lastNotifiedBand !== 'dead') {
         await notifyPetDead(petName);
         await setDoc(
           userRef,
-          { pet: { ...raw, lastNotifiedBand: 'dead' } },
+          { pet: { ...raw, lastNotifiedBand: 'dead', lastNotifiedHealth: 0 } },
           { merge: true }
         );
       }
@@ -90,25 +176,17 @@ TaskManager.defineTask(BACKGROUND_HEALTH_TASK, async () => {
     };
 
     const next = applyHealthTick(prev, result.minutes);
-    const prevBand = getBand(prev.health);
-    const nextBand = getBand(next.health);
-    const overLimit = result.minutes > next.scrollLimit;
 
-    let lastNotifiedBand = raw.lastNotifiedBand ?? prevBand;
+    const notify = await processPetNotifications({
+      petName,
+      prevHealth: prev.health,
+      nextHealth: next.health,
+      minutes: result.minutes,
+      scrollLimit: next.scrollLimit,
+      lastNotifiedBand: raw.lastNotifiedBand,
+      lastNotifiedHealth: raw.lastNotifiedHealth,
+    });
 
-    // Notify only on band change / first time over limit
-    if (nextBand === 'dead' && lastNotifiedBand !== 'dead') {
-      await notifyPetDead(petName);
-      lastNotifiedBand = 'dead';
-    } else if (nextBand === 'sick' && lastNotifiedBand === 'healthy') {
-      await notifyPetSick(petName);
-      lastNotifiedBand = 'sick';
-    } else if (overLimit && lastNotifiedBand !== 'over' && nextBand === 'healthy') {
-      await notifyOverLimit(petName, result.minutes, next.scrollLimit);
-      lastNotifiedBand = 'over';
-    }
-
-    // Keep usage history in sync (same as Home)
     const todayKey = getUTCDateKey();
     const existingHistory: Record<string, number> =
       userDoc.data()?.usageHistory ?? {};
@@ -136,7 +214,8 @@ TaskManager.defineTask(BACKGROUND_HEALTH_TASK, async () => {
           ...next,
           usageBaselineMinutes: result.newBaseline,
           usageBaselineDate: result.newBaselineDate,
-          lastNotifiedBand,
+          lastNotifiedBand: notify.lastNotifiedBand,
+          lastNotifiedHealth: notify.lastNotifiedHealth,
         },
         usageHistory: updatedHistory,
       },
@@ -155,11 +234,10 @@ export async function registerBackgroundHealthTask(): Promise<void> {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(
       BACKGROUND_HEALTH_TASK
     );
-
     if (isRegistered) return;
 
     await BackgroundFetch.registerTaskAsync(BACKGROUND_HEALTH_TASK, {
-      minimumInterval: 15 * 60, // Android minimum is effectively ~15 min
+      minimumInterval: 15 * 60,
       stopOnTerminate: false,
       startOnBoot: true,
     });

@@ -164,7 +164,9 @@ export default function PetSelectScreen() {
             title: currentPet.title,
             createdAt: new Date().toISOString(),
             ...createDefaultHealth(),
-            challenges: emptyChallengeState(), // reset challenges for new pet
+            challenges: emptyChallengeState(),
+            lastNotifiedBand: 'healthy',
+            lastNotifiedHealth: 100,
           },
         },
         { merge: true }
@@ -251,7 +253,6 @@ export default function PetSelectScreen() {
     opacity: cinematicOpacity.value,
   }));
 
-  // ==================== LANDSCAPE ====================
   if (isLandscape) {
     return (
       <View
@@ -345,7 +346,6 @@ export default function PetSelectScreen() {
     );
   }
 
-  // ==================== PORTRAIT ====================
   return (
     <View style={[styles.portraitContainer, { paddingTop: insets.top + 12 }]}>
       <Animated.View pointerEvents="none" style={[styles.cinematicFlash, cinematicFlashStyle]} />

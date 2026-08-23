@@ -1,5 +1,9 @@
 import { useAuth } from '@/context/AuthContext';
 import {
+  processPetNotifications,
+  type NotifyBand,
+} from '@/services/background';
+import {
   badgeUnlockCount,
   buildChallengeViews,
   emptyChallengeState,
@@ -34,6 +38,8 @@ import {
   type DimensionValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+
 
 // ─────────────────────────────────────────────
 // PET ASSETS
@@ -139,6 +145,8 @@ type PetData = {
   usageBaselineMinutes?: number;
   usageBaselineDate?: string;
   challenges?: ChallengeState;
+  lastNotifiedBand?: NotifyBand;
+  lastNotifiedHealth?: number;
 };
 
 function PixelBar({ value, color }: { value: number; color: string }) {
@@ -161,9 +169,6 @@ function PixelBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// Pet animation isolated — stops badge/challenge flicker
-// ─────────────────────────────────────────────
 function PetDisplay({
   petType,
   health,
@@ -213,9 +218,6 @@ function PetDisplay({
   );
 }
 
-// ─────────────────────────────────────────────
-// Challenge Card
-// ─────────────────────────────────────────────
 const ChallengeCard = React.memo(function ChallengeCard({
   challenge,
   onPress,
@@ -312,9 +314,6 @@ function ChallengeDetailModal({
   );
 }
 
-// ─────────────────────────────────────────────
-// Badge Card
-// ─────────────────────────────────────────────
 const BadgeCard = React.memo(function BadgeCard({
   id,
   name,
@@ -505,6 +504,17 @@ export default function HomeScreen() {
       setScrollMinutes(next.totalScrollToday);
       setScrollLimit(next.scrollLimit);
 
+      // Notifications (sick / sicker / near death / dead / full / over limit)
+      const notify = await processPetNotifications({
+        petName: raw.name || 'Your pet',
+        prevHealth: prev.health,
+        nextHealth: next.health,
+        minutes,
+        scrollLimit: next.scrollLimit,
+        lastNotifiedBand: raw.lastNotifiedBand,
+        lastNotifiedHealth: raw.lastNotifiedHealth,
+      });
+
       let challengeState = raw.challenges ?? emptyChallengeState();
 
       if (granted) {
@@ -550,6 +560,8 @@ export default function HomeScreen() {
             usageBaselineMinutes: baselineMinutes,
             usageBaselineDate: baselineDate,
             challenges: challengeState,
+            lastNotifiedBand: notify.lastNotifiedBand,
+            lastNotifiedHealth: notify.lastNotifiedHealth,
           },
           usageHistory: updatedHistory,
         },
@@ -732,7 +744,6 @@ export default function HomeScreen() {
     );
   }
 
-  // ==================== LANDSCAPE ====================
   if (isLandscape) {
     return (
       <SafeAreaView style={styles.landscapeSafe} edges={['top', 'left', 'right']}>
@@ -827,7 +838,6 @@ export default function HomeScreen() {
     );
   }
 
-  // ==================== PORTRAIT ====================
   return (
     <SafeAreaView style={styles.portraitSafe} edges={['top']}>
       <HeaderMenu />
