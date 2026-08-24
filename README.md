@@ -1,4 +1,4 @@
-# Doomagotchi
+# Doomagotchi <img src="assets/images/Logo Skull.png" alt="Skull logo" width="52" />
 
 **A digital pet that dies when you doomscroll.**
 
@@ -38,11 +38,15 @@ Email sign up and login through Firebase Authentication. Session persistence wit
 
 ### Pets
 
-Three selectable pets. Each has happy, sick and dead animations. Idle (happy) states are shown below.
+Three selectable pets. Each has happy, sick and dead animations. Idle states are shown below.
 
-| Nugget (Panda) | Waddles (Duck) | Spino (Spinosaurus) |
+<p align="center">
+
+| Nugget | Waddles | Spino |
 |:---:|:---:|:---:|
-| <img src="assets/pets/Panda/Panda Idle.gif" alt="Nugget idle" width="120" /> | <img src="assets/pets/Duck/Duck Idle.gif" alt="Waddles idle" width="120" /> | <img src="assets/pets/Spinosaurus/Idle Spino.gif" alt="Spino idle" width="120" /> |
+| <img src="assets/pets/Panda/Panda Idle.gif" alt="Nugget" width="120" /> | <img src="assets/pets/Duck/Duck Idle.gif" alt="Waddles" width="120" /> | <img src="assets/pets/Spinosaurus/Idle Spino.gif" alt="Spino" width="120" /> |
+
+</p>
 
 The user names the pet. Pet data is stored per user in Firestore.
 
