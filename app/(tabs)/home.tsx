@@ -1,3 +1,5 @@
+import ProfileModal from '@/components/ProfileModal';
+import SettingsModal from '@/components/SettingsModal';
 import { useAuth } from '@/context/AuthContext';
 import {
   processPetNotifications,
@@ -38,8 +40,6 @@ import {
   type DimensionValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-
 
 // ─────────────────────────────────────────────
 // PET ASSETS
@@ -417,6 +417,8 @@ export default function HomeScreen() {
   const [pet, setPet] = useState<PetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [challengesExpanded, setChallengesExpanded] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeView | null>(null);
@@ -504,7 +506,6 @@ export default function HomeScreen() {
       setScrollMinutes(next.totalScrollToday);
       setScrollLimit(next.scrollLimit);
 
-      // Notifications (sick / sicker / near death / dead / full / over limit)
       const notify = await processPetNotifications({
         petName: raw.name || 'Your pet',
         prevHealth: prev.health,
@@ -579,14 +580,14 @@ export default function HomeScreen() {
   }, [loadPetAndUsage]);
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  const id = setInterval(() => {
-    loadPetAndUsage();
-  }, 45_000); 
+    const id = setInterval(() => {
+      loadPetAndUsage();
+    }, 45_000);
 
-  return () => clearInterval(id);
-}, [user, loadPetAndUsage]);
+    return () => clearInterval(id);
+  }, [user, loadPetAndUsage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -596,6 +597,7 @@ export default function HomeScreen() {
 
   const handleLogout = () => {
     setMenuOpen(false);
+    setProfileOpen(false);
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -668,7 +670,7 @@ export default function HomeScreen() {
             style={styles.menuItem}
             onPress={() => {
               setMenuOpen(false);
-              Alert.alert('Profile', 'Profile screen coming soon.');
+              setProfileOpen(true);
             }}
           >
             <Text style={styles.menuItemText}>Profile</Text>
@@ -680,7 +682,7 @@ export default function HomeScreen() {
             style={styles.menuItem}
             onPress={() => {
               setMenuOpen(false);
-              Alert.alert('Settings', 'Settings screen coming soon.');
+              setSettingsOpen(true);
             }}
           >
             <Text style={styles.menuItemText}>Settings</Text>
@@ -758,6 +760,15 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.landscapeSafe} edges={['top', 'left', 'right']}>
         <HeaderMenu />
+        <ProfileModal
+          visible={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          onLogout={handleLogout}
+        />
+        <SettingsModal
+          visible={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
         <ChallengeDetailModal
           challenge={selectedChallenge}
           visible={!!selectedChallenge}
@@ -851,6 +862,15 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.portraitSafe} edges={['top']}>
       <HeaderMenu />
+      <ProfileModal
+        visible={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onLogout={handleLogout}
+      />
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
       <ChallengeDetailModal
         challenge={selectedChallenge}
         visible={!!selectedChallenge}

@@ -34,9 +34,6 @@ function getIntensityLevel(minutes: number, limit: number): number {
   return 4;
 }
 
-function toDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 function getLast7Days(): { key: string; label: string }[] {
   const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -57,17 +54,17 @@ function getLast7Days(): { key: string; label: string }[] {
 function calculateStreak(history: Record<string, number>, limit: number): number {
   let streak = 0;
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
 
+  // Walk backwards in pure UTC days
   while (true) {
-    const key = toDateKey(d);
+    const key = getUTCDateKey(d);
     const minutes = history[key];
 
     if (minutes === undefined) break;
 
     if (minutes <= limit) {
       streak += 1;
-      d.setDate(d.getDate() - 1);
+      d.setUTCDate(d.getUTCDate() - 1);
     } else {
       break;
     }
@@ -193,9 +190,9 @@ export default function StatsScreen() {
       setWeeklyTotal(orderedWeek.reduce((sum, d) => sum + d.value, 0));
 
       const now = new Date();
-      const year = now.getFullYear();
-      const monthIndex = now.getMonth();
-      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      const utcYear = now.getUTCFullYear();
+      const utcMonth = now.getUTCMonth(); // 0-based
+      const daysInMonth = new Date(Date.UTC(utcYear, utcMonth + 1, 0)).getUTCDate();
 
       const monthActivity: number[] = [];
       for (let day = 1; day <= 31; day++) {
@@ -203,7 +200,8 @@ export default function StatsScreen() {
           monthActivity.push(0);
           continue;
         }
-        const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        const key = `${utcYear}-${String(utcMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayMinutes = history[key] ?? 0;
         monthActivity.push(getIntensityLevel(dayMinutes, limit));
       }
