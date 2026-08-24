@@ -550,11 +550,10 @@ export default function HomeScreen() {
       });
 
       // ─────────────────────────────────────────────────────────
-      // CHALLENGE INHERITANCE FIX
+      // CHALLENGE INHERITANCE + UNLOCK FIX
       // First Light needs a FULL finished day AFTER creation.
-      // No challenge can legitimately complete while daysAlive < 2.
-      // Force empty state so a brand-new pet never shows First Light
-      // (or any challenge) as already done.
+      // No challenge can legitimately complete (or even be unlocked)
+      // while daysAlive < 2. Force everything locked on day 1.
       // ─────────────────────────────────────────────────────────
       let challengeState = raw.challenges ?? emptyChallengeState();
 
@@ -566,7 +565,14 @@ export default function HomeScreen() {
         Math.floor((nowStart.getTime() - createdStart.getTime()) / 86_400_000) + 1;
 
       if (daysAlive < 2) {
+        // Brand new pet — nothing should be unlocked yet.
         challengeState = emptyChallengeState();
+        setChallengeViews(
+          buildChallengeViews(challengeState).map((c) => ({
+            ...c,
+            status: 'locked' as const,
+          }))
+        );
       } else if (granted) {
         try {
           challengeState = await evaluateChallenges({
@@ -579,9 +585,10 @@ export default function HomeScreen() {
         } catch (e) {
           console.log('Challenge evaluate error:', e);
         }
+        setChallengeViews(buildChallengeViews(challengeState));
+      } else {
+        setChallengeViews(buildChallengeViews(challengeState));
       }
-
-      setChallengeViews(buildChallengeViews(challengeState));
 
       const existingHistory: Record<string, number> =
         userDoc.data()?.usageHistory ?? {};

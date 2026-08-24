@@ -12,13 +12,14 @@ export const styles = StyleSheet.create({
   // ========== LANDSCAPE ==========
   landscapeSafe: {
     flex: 1,
-    backgroundColor: '#FFF9F5',
+    backgroundColor: '#B83F3F',
   },
   landscapeRow: {
     flex: 1,
     flexDirection: 'row',
     padding: 14,
     gap: 14,
+    backgroundColor: '#FFF9F5',
   },
   landscapePetCard: {
     width: '38%',
