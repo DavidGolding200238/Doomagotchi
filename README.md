@@ -40,13 +40,13 @@ Email sign up and login through Firebase Authentication. Session persistence wit
 
 Three selectable pets. Each has happy, sick and dead animations. Idle states are shown below.
 
-<p align="center">
+<div align="center">
 
 | Nugget | Waddles | Spino |
 |:---:|:---:|:---:|
 | <img src="assets/pets/Panda/Panda Idle.gif" alt="Nugget" width="120" /> | <img src="assets/pets/Duck/Duck Idle.gif" alt="Waddles" width="120" /> | <img src="assets/pets/Spinosaurus/Idle Spino.gif" alt="Spino" width="120" /> |
 
-</p>
+</div>
 
 The user names the pet. Pet data is stored per user in Firestore.
 
