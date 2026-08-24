@@ -15,7 +15,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DUCK_DEAD = require('@/assets/pets/Duck/Duck Dead.gif');
 const SPINO_DEAD = require('@/assets/pets/Spinosaurus/Dead spino.gif');
@@ -50,6 +50,7 @@ export default function GraveyardScreen() {
   const [fallen, setFallen] = useState<FallenPet[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPet, setSelectedPet] = useState<FallenPet | null>(null);
+  const insets = useSafeAreaInsets();
 
   const modalWidth = Math.min(320, width - 40);
 
@@ -142,7 +143,22 @@ export default function GraveyardScreen() {
 
   if (isLandscape) {
     return (
-      <SafeAreaView style={styles.safeRed} edges={['top']}>
+     <SafeAreaView style={styles.safeRed} edges={['top', 'left', 'right']}>
+
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top,
+          backgroundColor: '#B83F3F',
+          zIndex: 999,
+        }}
+      />
+
+
         <View style={styles.landscapeRow}>
           <ScrollView
             style={styles.landscapeScroll}

@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
   // ========== LANDSCAPE ==========
   landscapeSafe: {
     flex: 1,
-    backgroundColor: '#B83F3F',
+    backgroundColor: '#FFF9F5',
   },
   landscapeRow: {
     flex: 1,

@@ -41,7 +41,7 @@ import {
   useWindowDimensions,
   type DimensionValue,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─────────────────────────────────────────────
 // PET ASSETS
@@ -86,6 +86,7 @@ const BADGE_BOOK_WORM = require('@/assets/Badges/Book Worm.png');
 
 const LOCK_ICON = require('@/assets/images/Lock icon.png');
 const SETTINGS_ICON = require('@/assets/images/Settings Icon.png');
+
 
 const CHALLENGE_ICONS: Record<string, any> = {
   '1': ICON_FIRST_LIGHT,
@@ -412,6 +413,7 @@ const BadgeCard = React.memo(function BadgeCard({
 });
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { user, signOut } = useAuth();
@@ -840,6 +842,20 @@ export default function HomeScreen() {
   if (isLandscape) {
     return (
       <SafeAreaView style={styles.landscapeSafe} edges={['top', 'left', 'right']}>
+
+        <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top,
+          backgroundColor: '#B83F3F',
+          zIndex: 999,
+        }}
+      />
+
         <HeaderMenu />
         <ProfileModal
           visible={profileOpen}

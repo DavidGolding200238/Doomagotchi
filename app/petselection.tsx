@@ -280,6 +280,19 @@ export default function PetSelectScreen() {
           },
         ]}
       >
+
+        <View
+    pointerEvents="none"
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: insets.top,
+      backgroundColor: '#B83F3F',
+      zIndex: 999,
+    }}
+  />
         <View style={styles.landscapeRow}>
           <View style={styles.landscapePetCard}>
             <View style={styles.landscapePetControls}>
@@ -363,6 +376,19 @@ export default function PetSelectScreen() {
 
   return (
     <View style={[styles.portraitContainer, { paddingTop: insets.top + 12 }]}>
+
+      <View
+    pointerEvents="none"
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: insets.top,
+      backgroundColor: '#B83F3F',
+      zIndex: 999,
+    }}
+  />
       <Animated.View pointerEvents="none" style={[styles.cinematicFlash, cinematicFlashStyle]} />
 
       <View style={styles.portraitTopText}>

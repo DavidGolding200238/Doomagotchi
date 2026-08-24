@@ -4,7 +4,7 @@ export const styles = StyleSheet.create({
   // Shared
   safeRed: {
     flex: 1,
-    backgroundColor: '#B83F3F',
+    backgroundColor: '#1A1210',
   },
   darkBg: {
     flex: 1,
