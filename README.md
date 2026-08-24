@@ -2,220 +2,299 @@
 
 **A digital pet that dies when you doomscroll.**
 
-Doomagotchi is a cross-platform mobile application that helps users reduce excessive social media usage through a virtual pet. The pet’s health declines when the user scrolls too much and recovers when usage is reduced. If the user continues to exceed their limit, the pet dies.
+Doomagotchi links your real social media usage to a virtual pet. Scroll too much and the pet gets sick and can die. Cut back and it recovers. Challenges and badges reward consistency.
 
-This project was built as a university submission using Expo (React Native) and Firebase.
-
----
-
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-**Note:** Scroll time is currently mocked. Real usage tracking is not implemented yet. Use the `Main` branch for the latest work.
+Built with Expo (React Native), Firebase, and real Android usage tracking.
 
 ---
 
-## 1. Project Overview
+## 1. Overview
 
 ### Problem
-Doomscrolling is common among Gen Z and younger Millennials. Most screen-time tools only show reports or soft limits that are easy to ignore. There is little emotional consequence that actually motivates people to change the habit.
+
+Doomscrolling is common among Gen Z and younger Millennials. Most screen time tools only show reports or soft limits that are easy to ignore. There is little emotional consequence attached to the behaviour.
 
 ### Solution
-The app links the user’s scrolling behaviour directly to a digital pet:
 
-- Too much scrolling → health and happiness drop
-- Less scrolling → the pet recovers
-- Continued excess → the pet dies and is moved to the graveyard
-- Challenges and badges reward streaks of better behaviour
+The app makes the cost of the habit feel real.
 
-The experience is intentionally strict. The cost of the habit is meant to feel real.
+Too much scrolling reduces the pet's health and happiness. Less scrolling lets the pet recover. Continued excess kills the pet and moves it to the Graveyard. Challenges and badges reward streaks of better behaviour.
 
-### Target Users
-- Gen Z and younger Millennials (roughly 18–32)
-- Students and early-career users
-- People who spend a lot of time on Instagram, TikTok, Reels, and similar apps
+### Target users
 
----
+Gen Z and younger Millennials (roughly 18 to 32). Students and early career users. People who spend a lot of time on Instagram, TikTok, X, YouTube and similar apps.
 
-## 2. Scope
+### Platform
 
-### Included
-- Cross-platform mobile app (Expo)
-- Email authentication
-- Pet selection, naming, and saving to the cloud
-- Health and happiness system driven by scroll time
-- Pet visual states (happy / sick / dead) with animations
-- Challenge system
-- Badge collection
-- Graveyard for dead pets
-- Portrait and landscape layouts on the main screens
-
-### Not included
-- Real device screen-time tracking (currently mocked)
-- Push notifications
-- In-app purchases
+Android only. Real usage stats require Android. The app is distributed as an APK built with EAS. Expo Go is not supported.
 
 ---
 
-## 3. Features
+## 2. Features
 
 ### Authentication
-- Email sign-up and login
-- Firebase Authentication
-- Session kept with AsyncStorage
-- Logout from the home menu
+
+Email sign up and login through Firebase Authentication. Session persistence with AsyncStorage. Logout from the home menu.
 
 ### Pets
-- Selectable pets including Nugget, Waddles, Spino, and Panda
-- User can give the pet a name
-- Pet data is stored per user in Firestore
-- Health and happiness values
-- Animation states: happy, sick, dead
-- “Lay to Rest” flow when health reaches zero
 
-### Health System
-- Currently driven by mocked scroll minutes
-- Health and happiness decrease when the daily limit is exceeded
-- Small recovery on a new day when under the limit
-- Logic is in `services/health.ts`
+Three selectable pets:
+
+| Pet | Species |
+|-----|---------|
+| Nugget | Panda |
+| Waddles | Duck |
+| Spino | Spinosaurus |
+
+The user names the pet. Visual states are happy, sick and dead, each with animated GIFs. Pet data is stored per user in Firestore.
+
+### Real usage tracking
+
+Uses Android Usage Access (PACKAGE_USAGE_STATS). Tracks selected social apps: Instagram, TikTok, X, YouTube, Facebook, Messenger, Reddit and Snapchat. The user can turn individual apps on or off in Settings. Default daily scroll limit is 45 minutes. Only new over limit minutes damage the pet.
+
+### Health system
+
+Health and happiness drop when the daily limit is exceeded. Small recovery occurs when under the limit or on a new day. Once health reaches zero the pet stays dead. There is no easy recovery path.
 
 ### Challenges
-- Set of challenges focused on protecting the pet and reducing scrolling
-- States: Locked, Available / In Progress, Completed, Failed
-- Failed challenges reset
-- First four challenges shown by default, with option to expand the full list
-- Custom icons for some challenges
+
+Challenges unlock one after another. On the pet's first UTC day all challenges stay locked by design.
+
+| ID | Name | Goal |
+|----|------|------|
+| 1 | First Light | Stay under the scroll limit for 1 full day |
+| 2 | No Scroll Night | Zero social apps between 21:00 and 07:00 UTC |
+| 3 | Two-Day Streak | Keep the pet healthy for 2 consecutive days |
+| 4 | Scroll Fast | Stay under 50 percent of the daily limit |
+| 5 | Three-Day Streak | 3 consecutive healthy days |
+| 6 | Morning Mute | No social apps before 10:00 UTC |
+| 7 | Five-Day Guardian | 5 consecutive days under the limit |
+| 8 | Weekend Warrior | Both Saturday and Sunday under the limit (UTC) |
+| 9 | Week of Focus | 7 consecutive healthy days |
+| 10 | Pet Protector | Keep the same pet alive for 14 days total |
 
 ### Badges
-- Collection unlocked by completing challenges
-- Unlock thresholds based on number of completed challenges
-- Locked badges show a lock icon
+
+Badges unlock based on the number of completed challenges.
+
+| Badge | Requirement |
+|-------|-------------|
+| Sun Gazer | Complete 2 challenges |
+| Focus King | Complete 4 challenges |
+| Deep Sleeper | Complete 6 challenges |
+| Book Worm | Complete all 10 challenges |
 
 ### Graveyard
-- Dead pets are saved under the user in Firestore
-- Shows days lived, cause of death, and epitaph
-- Summary stats (total souls, best streak)
 
-### Interface
-- Cream / coral / gold colour palette
-- Press Start 2P font for titles and level text
-- Styles kept in separate files per screen
-- Portrait and landscape support on core screens
+Dead pets are saved with days lived, cause of death and an epitaph. Summary stats are shown for total souls and related totals.
+
+### Notifications and background work
+
+Local notifications fire for over limit, sick, getting sicker, near death, dead and full health states. A background health task runs roughly every 15 minutes so the pet continues to update even when the app is not open.
+
+### Settings and profile
+
+Settings cover usage permission and which apps are tracked. Profile covers account info, logout and account deletion. Portrait and landscape layouts are supported on the core screens.
 
 ---
 
-## 4. Technical Stack
+## 3. Tech stack
 
-| Layer             | Technology                                |
-|-------------------|-------------------------------------------|
-| Framework         | Expo SDK 54                               |
-| Language          | TypeScript                                |
-| UI                | React Native                              |
-| Navigation        | expo-router                               |
-| Backend           | Firebase (Auth + Firestore)               |
-| Local storage     | AsyncStorage                              |
-| Animations        | react-native-reanimated, gesture-handler  |
-| Images            | expo-image                                |
-| Fonts             | Press Start 2P                            |
+| Layer | Technology |
+|-------|------------|
+| Framework | Expo SDK 54 with expo-dev-client |
+| Language | TypeScript |
+| UI | React Native |
+| Navigation | expo-router |
+| Backend | Firebase Auth and Firestore |
+| Usage tracking | expo-android-usagestats |
+| Background work | expo-background-fetch and TaskManager |
+| Notifications | expo-notifications |
+| Builds | EAS Build |
+| Android package | com.brohammer.Doomagotchi |
 
-### Main folders
+---
+
+## 4. Installation (APK)
+
+This is the normal way to run the current version of the app.
+
+### Requirements
+
+An Android phone or emulator. Permission to install apps from unknown sources when installing the APK.
+
+### Steps
+
+1. Download the latest EAS preview or development build APK for this project.
+2. Open the APK on the device and install it. Allow install from unknown sources if the system asks.
+3. Launch Doomagotchi.
+4. Grant Usage Access. The app may prompt for it, or go to Settings, Apps, Special app access, Usage access, Doomagotchi, and allow access. Without this permission the app cannot read real scroll time.
+5. Sign up or log in with email and password.
+6. Choose a pet and give it a name.
+7. Optionally allow notifications so the pet can warn you when it is getting sick.
+
+The app is then running with live usage tracking.
+
+---
+
+## 5. Development setup
+
+Only required if you need to build or change the code.
+
+### Prerequisites
+
+Node.js 18 or newer. npm. An Expo account and EAS CLI. An Android device or emulator. A Firebase project with Auth and Firestore configured for this app.
+
+### Install dependencies
+
+```bash
+git clone <repo-url>
+cd Doomagotchi
+git checkout Main
+npm install
+```
+
+### Build with EAS
+
+Expo Go does not work because the native usage stats module is required.
+
+```bash
+npm install -g eas-cli
+eas login
+
+# Development client
+eas build --profile development --platform android
+
+# Preview APK for testers
+eas build --profile preview --platform android
+```
+
+Install the resulting APK on a device, then start the dev client:
+
+```bash
+npx expo start --dev-client
+```
+
+### Permissions used
+
+android.permission.PACKAGE_USAGE_STATS  
+android.permission.POST_NOTIFICATIONS  
+android.permission.RECEIVE_BOOT_COMPLETED  
+android.permission.WAKE_LOCK
+
+---
+
+## 6. How the app works
+
+1. The user installs the APK and grants Usage Access.
+2. The user creates an account and selects a pet.
+3. On every open, and via the background task, the app reads social app minutes for the current UTC day.
+4. Minutes over the daily limit reduce health and happiness.
+5. Time under the limit allows slow recovery.
+6. When health reaches zero the pet is dead. The user can lay it to rest and it moves to the Graveyard.
+7. Challenges are evaluated in sequence against real usage windows.
+8. Badges unlock from the number of completed challenges.
+
+All dates used for limits and challenges are UTC.
+
+---
+
+## 7. Screens and mockups
+
+### Main screens
+
+| Screen | Purpose |
+|--------|---------|
+| Login and Sign up | Email authentication |
+| Pet selection | Choose and name the pet |
+| Home | Pet display, health and happiness, today's scroll, challenges, badges |
+| Stats | Usage history and activity |
+| Graveyard | Fallen pets |
+| Rest | Lay a dead pet to rest |
+| Settings | Usage permission and tracked apps |
+| Profile | Account info and logout |
+
+### Design direction
+
+Cream, coral and gold colour palette. Press Start 2P for titles. Pixel style pet animations for idle, sick, dead and walk states. Clean cards and soft corners. Portrait and landscape support on core screens. UI direction was guided by Visily wireframes covering onboarding, pet selection, dashboard, stats and graveyard.
+
+### Assets in the repository
+
+assets/pets holds full GIF sets for Duck, Panda and Spinosaurus.  
+assets/Icons holds challenge icons.  
+assets/Badges holds badge artwork.  
+assets/images holds the logo, lock icon, app icon and splash.
+
+### Mockups for review
+
+Place device screenshots of Home, Pet selection, Graveyard, Stats and Settings in a docs/mockups folder and reference them here so reviewers can see the live UI without installing the APK.
+
+---
+
+## 8. Project structure
 
 ```
 app/
-  (auth)/          login & signup
-  (tabs)/          home, stats, graveyard
+  (auth)/             login and signup
+  (tabs)/             home, stats, graveyard
   petselection.tsx
-  rest.tsx         lay-to-rest flow
+  rest.tsx
+  _layout.tsx
 
 assets/
-  images/          icons, badges, splash
-  pets/            pet animation sets
+  pets/               Duck, Panda, Spinosaurus GIFs
+  Icons/              challenge icons
+  Badges/             badge icons
+  images/             logo, app icon, splash
 
-components/
-context/           AuthContext
-services/          firebase, health, graveyard
-styles/            one styles file per screen
+components/           ProfileModal, SettingsModal, shared UI
+context/              AuthContext
+services/
+  usage.ts            Android usage stats
+  health.ts           health and happiness logic
+  challenges.ts       sequential challenge evaluation
+  background.ts       background health tick and notifications
+  notifications.ts    local notification helpers
+  graveyard.ts
+  firebase.ts
+styles/               one styles file per screen
 ```
 
-### Data
-- `users/{uid}` — current pet and health state
-- `users/{uid}/graveyard/{petId}` — deceased pets
+### Firestore data
+
+users/{uid} stores the current pet, health state, challenges, trackedAppIds and usageHistory.  
+users/{uid}/graveyard/{petId} stores deceased pets.
 
 ---
 
-## 5. What Has Been Done
+## 9. Design choices
 
-- Expo + TypeScript project setup with file-based routing
-- Firebase email auth and session persistence
-- Pet selection with naming and cloud save
-- Home screen with health/happiness, challenges, and badges
-- Mock health system
-- Lay-to-rest flow and graveyard
-- Animations for the available pets
-- Portrait and landscape layouts
-- Challenge list with locked/completed states and expand/collapse
-- Badge collection tied to challenge completion
-- Custom icons for selected challenges and badges
-- Consistent styling and colour system
+There are no easy recovery power ups. Paying or watching an ad to revive the pet would weaken the core loop of consequences.
 
----
+Challenges stay locked on the pet's first UTC day so First Light requires a full finished day after creation.
 
-## 6. What Still Needs to Be Done
+Later challenges stay locked until earlier ones are completed.
 
-- Replace mocked scroll time with real usage data
-- Drive challenge progress from actual behaviour instead of mock values
-- Reliable daily reset for limits and challenges
-- Finish any remaining animation coverage across all pets
-- Profile / settings screens if required for submission
+Tracked apps are user controlled. Users can exclude apps they do not want counted toward the limit.
+
+Challenge 2 (No Scroll Night) checks all tracked social apps, not only Instagram and TikTok.
+
+UTC is used everywhere for daily limits and challenge windows to avoid timezone edge cases.
+
+Real usage tracking is live. Mock scroll data is no longer used.
 
 ---
 
-## 7. Design Choices
+## 10. Repository
 
-- No easy recovery power-ups — they would weaken the core loop of consequences.
-- Challenges reset when failed so consistency matters.
-- Badges unlock from completing a number of challenges rather than one-to-one mapping.
-- Mock data was used first so the full loop (select pet → health change → death → graveyard) could be built and tested before platform usage APIs.
-
----
-
-## 8. Repository
-
-- Private repo: `DavidGolding200238/Doomagotchi`
-- Active development branch: `Main`
+Private repository: DavidGolding200238/Doomagotchi  
+Active branch: Main  
+Older branch: master (outdated)
 
 ---
 
-## 9. Submission Note
+## 11. Notes for reviewers
 
-This README describes the current state of Doomagotchi for university assessment. It covers the problem, scope, implementation, how to run the app, completed work, and remaining tasks.
+The recommended way to evaluate the app is to install the EAS built APK on an Android device and grant Usage Access. Expo Go is not supported.
 
-The app runs as a working prototype with mocked scroll data. The main experience — choosing a pet, watching its health respond, completing challenges, and using the graveyard — is implemented.
-
----
-
-## Learn more (Expo)
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-```
+The full loop is implemented: select a pet, track real scroll time, watch health change, complete challenges, unlock badges, and move a dead pet to the Graveyard.
