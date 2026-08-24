@@ -38,15 +38,13 @@ Email sign up and login through Firebase Authentication. Session persistence wit
 
 ### Pets
 
-Three selectable pets:
+Three selectable pets. Each has happy, sick and dead animations. Idle (happy) states are shown below.
 
-| Pet | Species |
-|-----|---------|
-| Nugget | Panda |
-| Waddles | Duck |
-| Spino | Spinosaurus |
+| Nugget (Panda) | Waddles (Duck) | Spino (Spinosaurus) |
+|:---:|:---:|:---:|
+| <img src="assets/pets/Panda/Panda Idle.gif" alt="Nugget idle" width="120" /> | <img src="assets/pets/Duck/Duck Idle.gif" alt="Waddles idle" width="120" /> | <img src="assets/pets/Spinosaurus/Idle Spino.gif" alt="Spino idle" width="120" /> |
 
-The user names the pet. Visual states are happy, sick and dead, each with animated GIFs. Pet data is stored per user in Firestore.
+The user names the pet. Pet data is stored per user in Firestore.
 
 ### Real usage tracking
 
@@ -60,29 +58,29 @@ Health and happiness drop when the daily limit is exceeded. Small recovery occur
 
 Challenges unlock one after another. On the pet's first UTC day all challenges stay locked by design.
 
-| ID | Name | Goal |
-|----|------|------|
-| 1 | First Light | Stay under the scroll limit for 1 full day |
-| 2 | No Scroll Night | Zero social apps between 21:00 and 07:00 UTC |
-| 3 | Two-Day Streak | Keep the pet healthy for 2 consecutive days |
-| 4 | Scroll Fast | Stay under 50 percent of the daily limit |
-| 5 | Three-Day Streak | 3 consecutive healthy days |
-| 6 | Morning Mute | No social apps before 10:00 UTC |
-| 7 | Five-Day Guardian | 5 consecutive days under the limit |
-| 8 | Weekend Warrior | Both Saturday and Sunday under the limit (UTC) |
-| 9 | Week of Focus | 7 consecutive healthy days |
-| 10 | Pet Protector | Keep the same pet alive for 14 days total |
+| Icon | Name | Goal |
+|:---:|------|------|
+| <img src="assets/Icons/First Light.png" alt="First Light" width="40" /> | First Light | Stay under the scroll limit for 1 full day |
+| <img src="assets/Icons/No Reels Night.png" alt="No Scroll Night" width="40" /> | No Scroll Night | Zero social apps between 21:00 and 07:00 UTC |
+| <img src="assets/Icons/Two-Day Streak.png" alt="Two-Day Streak" width="40" /> | Two-Day Streak | Keep the pet healthy for 2 consecutive days |
+| <img src="assets/Icons/Scroll Fast.png" alt="Scroll Fast" width="40" /> | Scroll Fast | Stay under 50 percent of the daily limit |
+| <img src="assets/Icons/Three-Day Streak.png" alt="Three-Day Streak" width="40" /> | Three-Day Streak | 3 consecutive healthy days |
+| <img src="assets/Icons/Morning Mute.png" alt="Morning Mute" width="40" /> | Morning Mute | No social apps before 10:00 UTC |
+| <img src="assets/Icons/Five-Day Guardian.png" alt="Five-Day Guardian" width="40" /> | Five-Day Guardian | 5 consecutive days under the limit |
+| <img src="assets/Icons/Weekend Warrior.png" alt="Weekend Warrior" width="40" /> | Weekend Warrior | Both Saturday and Sunday under the limit (UTC) |
+| <img src="assets/Icons/Week of Focus.png" alt="Week of Focus" width="40" /> | Week of Focus | 7 consecutive healthy days |
+| <img src="assets/Icons/Pet Protector.png" alt="Pet Protector" width="40" /> | Pet Protector | Keep the same pet alive for 14 days total |
 
 ### Badges
 
 Badges unlock based on the number of completed challenges.
 
-| Badge | Requirement |
-|-------|-------------|
-| Sun Gazer | Complete 2 challenges |
-| Focus King | Complete 4 challenges |
-| Deep Sleeper | Complete 6 challenges |
-| Book Worm | Complete all 10 challenges |
+| Badge | Name | Requirement |
+|:---:|------|-------------|
+| <img src="assets/Badges/Sun Gazer.png" alt="Sun Gazer" width="48" /> | Sun Gazer | Complete 2 challenges |
+| <img src="assets/Badges/Focus King.png" alt="Focus King" width="48" /> | Focus King | Complete 4 challenges |
+| <img src="assets/Badges/Deep Sleeper.png" alt="Deep Sleeper" width="48" /> | Deep Sleeper | Complete 6 challenges |
+| <img src="assets/Badges/Book Worm.png" alt="Book Worm" width="48" /> | Book Worm | Complete all 10 challenges |
 
 ### Graveyard
 
@@ -121,19 +119,21 @@ This is the normal way to run the current version of the app.
 
 ### Requirements
 
-An Android phone or emulator. Permission to install apps from unknown sources when installing the APK.
+An Android phone. Permission to install apps from unknown sources when installing the APK.
 
 ### Steps
 
-1. Download the latest EAS preview or development build APK for this project.
-2. Open the APK on the device and install it. Allow install from unknown sources if the system asks.
-3. Launch Doomagotchi.
-4. Grant Usage Access. The app may prompt for it, or go to Settings, Apps, Special app access, Usage access, Doomagotchi, and allow access. Without this permission the app cannot read real scroll time.
-5. Sign up or log in with email and password.
-6. Choose a pet and give it a name.
-7. Optionally allow notifications so the pet can warn you when it is getting sick.
+1. Download the APK from the EAS build page (preview or development build for this project).
+2. On the Android device, open the downloaded APK file.
+3. If prompted, allow install from unknown sources for the browser or file manager you used.
+4. Confirm the install and wait until it finishes.
+5. Open Doomagotchi from the app drawer (or from the install success screen).
+6. When the app asks for Usage Access, tap through to the system screen and enable access for Doomagotchi. You can also do this later under Settings, Apps, Special app access, Usage access, Doomagotchi. Without this permission the app cannot read real scroll time.
+7. Allow notifications if prompted (optional but recommended).
+8. Sign up with email and password, or log in if you already have an account.
+9. Choose a pet, give it a name, and start using the app.
 
-The app is then running with live usage tracking.
+After that the home screen shows your pet, health, happiness, today's scroll time, challenges and badges. Usage is read from the device and updates the pet live.
 
 ---
 
@@ -169,7 +169,7 @@ eas build --profile development --platform android
 eas build --profile preview --platform android
 ```
 
-Install the resulting APK on a device, then start the dev client:
+Install the resulting APK on a device. For a preview build, open the app directly from the app drawer. For a development client build, start the Metro server then open the app:
 
 ```bash
 npx expo start --dev-client
