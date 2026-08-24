@@ -1,7 +1,6 @@
 import {
     getMinutesInRange,
-    resolveReelsPackages,
-    SOCIAL_PACKAGES,
+    SOCIAL_PACKAGES
 } from '@/services/usage';
 
 export type ChallengeStatus = 'locked' | 'available' | 'completed';
@@ -33,14 +32,14 @@ export const CHALLENGE_DEFS: ChallengeDef[] = [
     goal: '1 healthy day',
     xp: 40,
   },
-  {
-    id: '2',
-    name: 'No Reels Night',
-    description: 'Zero Instagram / TikTok between 21:00 – 07:00 UTC',
-    type: 'daily',
-    goal: 'Clean night',
-    xp: 50,
-  },
+    {
+        id: '2',
+        name: 'No Scroll Night',
+        description: 'Zero social apps between 21:00 – 07:00 UTC',
+        type: 'daily',
+        goal: 'Clean night',
+        xp: 50,
+    },
   {
     id: '3',
     name: 'Two-Day Streak',
@@ -216,17 +215,16 @@ function lastFinishedWeekend(now: Date): { sat: Date; sun: Date } | null {
   return { sat: lastSaturday, sun: lastSunday };
 }
 
-async function checkNoReelsNight(
+async function checkNoScrollNight(
   now: Date,
   createdAt: string,
-  trackedPackages: string[]
+  packages: string[]
 ): Promise<boolean> {
   // Only after 07:00 UTC so the window is complete
   if (now.getUTCHours() < 7) return false;
 
-  const reels = resolveReelsPackages(trackedPackages);
-  // If user disabled Instagram + TikTok, night is automatically clean
-  if (reels.length === 0) return true;
+  // If user is tracking nothing, night is automatically clean
+  if (packages.length === 0) return true;
 
   const todayStart = startOfUTCDay(now);
   const petCreated = startOfUTCDay(new Date(createdAt));
@@ -246,7 +244,7 @@ async function checkNoReelsNight(
   const minutes = await getMinutesInRange(
     windowStart.getTime(),
     windowEnd.getTime(),
-    reels
+    packages
   );
   return minutes === 0;
 }
@@ -300,8 +298,8 @@ async function canComplete(
         packages
       );
     }
-    case '2':
-      return checkNoReelsNight(now, createdAt, packages);
+      case '2':
+          return checkNoScrollNight(now, createdAt, packages);
     case '3':
       return hasConsecutiveHealthyDays(
         2,
