@@ -1,6 +1,7 @@
 import { emptyChallengeState } from '@/services/challenges';
 import { auth, db } from '@/services/firebase';
 import { createDefaultHealth } from '@/services/health';
+import { getRawTodaySocialMinutes, getUTCDateKey } from '@/services/usage';
 import { styles } from '@/styles/petselection.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -154,6 +155,16 @@ export default function PetSelectScreen() {
         withTiming(0, { duration: 600 })
       );
 
+      // Lock baseline to current social usage RIGHT NOW so the new pet
+      // starts at 0 minutes and cannot inherit the day's existing doomscroll.
+      const todayKey = getUTCDateKey();
+      let baselineMinutes = 0;
+      try {
+        baselineMinutes = await getRawTodaySocialMinutes();
+      } catch {
+        baselineMinutes = 0;
+      }
+
       await setDoc(
         doc(db, 'users', auth.currentUser.uid),
         {
@@ -164,7 +175,11 @@ export default function PetSelectScreen() {
             title: currentPet.title,
             createdAt: new Date().toISOString(),
             ...createDefaultHealth(),
+            // Force clean challenges — never inherit from a previous pet
             challenges: emptyChallengeState(),
+            // Baseline locked at birth
+            usageBaselineMinutes: baselineMinutes,
+            usageBaselineDate: todayKey,
             lastNotifiedBand: 'healthy',
             lastNotifiedHealth: 100,
           },

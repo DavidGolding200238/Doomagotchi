@@ -1,29 +1,42 @@
+import ProfileModal from '@/components/ProfileModal';
+import SettingsModal from '@/components/SettingsModal';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/services/firebase';
 import {
+  getMinutesInRange,
   getPetScrollMinutes,
   getTopEnemyApp,
   getUTCDateKey,
-  hasUsagePermission
+  hasUsagePermission,
+  resolveTrackedPackages,
 } from '@/services/usage';
 import { styles } from '@/styles/stats.styles';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const SETTINGS_ICON = require('@/assets/images/Settings Icon.png');
+
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const INTENSITY_COLORS = ['#E8E4DF', '#F5D76E', '#F0A05A', '#E06B6B', '#C94C4C'];
 const INTENSITY_LABELS = ['CLEAN', 'MILD', 'ALERT', 'HIGH', 'CRITICAL'];
+
+const LANDSCAPE_CHART_H = 110;
+const PORTRAIT_CHART_H = 130;
 
 function getIntensityLevel(minutes: number, limit: number): number {
   if (minutes <= 0) return 0;
@@ -34,18 +47,28 @@ function getIntensityLevel(minutes: number, limit: number): number {
   return 4;
 }
 
+/**
+ * Current calendar week Mon → Sun (UTC).
+ * Resets every Monday so the intensity graph starts clean for the new week.
+ * Future days in the week stay 0 until data exists.
+ */
+function getCurrentWeekMonSun(): { key: string; label: string }[] {
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const now = new Date();
+  const dow = now.getUTCDay(); // 0=Sun … 6=Sat
+  const daysFromMonday = dow === 0 ? 6 : dow - 1;
 
-function getLast7Days(): { key: string; label: string }[] {
-  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monday = new Date(now);
+  monday.setUTCHours(12, 0, 0, 0);
+  monday.setUTCDate(monday.getUTCDate() - daysFromMonday);
+
   const result: { key: string; label: string }[] = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() - i);
-
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setUTCDate(monday.getUTCDate() + i);
     result.push({
       key: getUTCDateKey(d),
-      label: labels[d.getUTCDay()],
+      label: labels[i],
     });
   }
   return result;
@@ -55,7 +78,6 @@ function calculateStreak(history: Record<string, number>, limit: number): number
   let streak = 0;
   const d = new Date();
 
-  // Walk backwards in pure UTC days
   while (true) {
     const key = getUTCDateKey(d);
     const minutes = history[key];
@@ -73,17 +95,57 @@ function calculateStreak(history: Record<string, number>, limit: number): number
   return streak;
 }
 
+/**
+ * Pull the last N UTC days from Android UsageStats and merge into history.
+ * Fixes missing intensity/calendar days when the app wasn't opened that day.
+ */
+async function backfillUsageHistory(
+  existing: Record<string, number>,
+  packages: string[],
+  dayCount = 14
+): Promise<Record<string, number>> {
+  const history = { ...existing };
+  const nowMs = Date.now();
+
+  for (let i = 0; i < dayCount; i++) {
+    const day = new Date();
+    day.setUTCHours(12, 0, 0, 0);
+    day.setUTCDate(day.getUTCDate() - i);
+
+    const key = getUTCDateKey(day);
+
+    const start = new Date(day);
+    start.setUTCHours(0, 0, 0, 0);
+
+    const end = new Date(day);
+    end.setUTCHours(23, 59, 59, 999);
+    const endMs = Math.min(end.getTime(), nowMs);
+
+    if (endMs <= start.getTime()) continue;
+
+    try {
+      history[key] = await getMinutesInRange(start.getTime(), endMs, packages);
+    } catch {
+      // keep existing value if query fails
+    }
+  }
+
+  return history;
+}
+
 export default function StatsScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [scrollLimit, setScrollLimit] = useState(45);
   const [graveyardCount, setGraveyardCount] = useState(0);
-  const [health, setHealth] = useState(100);
   const [topEnemy, setTopEnemy] = useState('—');
   const [streak, setStreak] = useState(0);
   const [weeklyTotal, setWeeklyTotal] = useState(0);
@@ -101,8 +163,9 @@ export default function StatsScreen() {
     { day: 'Sun', value: 0 },
   ]);
 
-  const [activity, setActivity] = useState<number[]>(
-    Array.from({ length: 31 }, () => 0)
+  // day: null = padding cell before the 1st of the month
+  const [activity, setActivity] = useState<{ day: number | null; level: number }[]>(
+    Array.from({ length: 31 }, (_, i) => ({ day: i + 1, level: 0 }))
   );
 
   const loadStats = useCallback(async () => {
@@ -119,26 +182,42 @@ export default function StatsScreen() {
       const userDoc = await getDoc(userRef);
       const userData = userDoc.exists() ? userDoc.data() : {};
       const pet = userData?.pet ?? null;
+      const trackedPackages = resolveTrackedPackages(
+        userData?.trackedAppIds ?? null
+      );
 
       let minutes = 0;
       let limit = 45;
-      let hp = 100;
-      let history: Record<string, number> = userData?.usageHistory ?? {};
+      let history: Record<string, number> = { ...(userData?.usageHistory ?? {}) };
+      let baselineMinutes = pet?.usageBaselineMinutes ?? 0;
+      let baselineDate = pet?.usageBaselineDate ?? '';
+      let shouldWriteBaseline = false;
 
       if (pet) {
         limit = pet.scrollLimit ?? 45;
-        hp = pet.health ?? 100;
 
         const granted = await hasUsagePermission();
         if (granted) {
           const result = await getPetScrollMinutes(
-            pet.usageBaselineMinutes ?? 0,
-            pet.usageBaselineDate ?? '',
-            pet.createdAt
+            baselineMinutes,
+            baselineDate,
+            pet.createdAt,
+            trackedPackages
           );
           minutes = result.minutes;
 
-          const enemy = await getTopEnemyApp();
+          // If baseline was missing / just locked, persist it so Home
+          // never sees a brand-new pet without protection.
+          if (
+            result.newBaselineDate !== baselineDate ||
+            result.newBaseline !== baselineMinutes
+          ) {
+            baselineMinutes = result.newBaseline;
+            baselineDate = result.newBaselineDate;
+            shouldWriteBaseline = true;
+          }
+
+          const enemy = await getTopEnemyApp(trackedPackages);
           setTopEnemy(enemy);
         } else {
           minutes = pet.totalScrollToday ?? 0;
@@ -147,11 +226,20 @@ export default function StatsScreen() {
       }
 
       const todayKey = getUTCDateKey();
-      history = {
-        ...history,
-        [todayKey]: minutes,
-      };
 
+      // Backfill last 14 days from system UsageStats so days the app
+      // was never opened (e.g. Saturday) still appear on the graphs.
+      const grantedForBackfill = await hasUsagePermission();
+      if (grantedForBackfill) {
+        history = await backfillUsageHistory(history, trackedPackages, 14);
+      } else {
+        history = {
+          ...history,
+          [todayKey]: minutes,
+        };
+      }
+
+      // Keep last 90 days only
       const sortedKeys = Object.keys(history).sort();
       if (sortedKeys.length > 90) {
         const keep = sortedKeys.slice(-90);
@@ -162,48 +250,51 @@ export default function StatsScreen() {
         history = trimmed;
       }
 
-      await setDoc(
-        userRef,
-        { usageHistory: history },
-        { merge: true }
-      );
+      const writePayload: Record<string, unknown> = { usageHistory: history };
+      if (shouldWriteBaseline && pet) {
+        writePayload.pet = {
+          ...pet,
+          usageBaselineMinutes: baselineMinutes,
+          usageBaselineDate: baselineDate,
+        };
+      }
+      await setDoc(userRef, writePayload, { merge: true });
 
       setTodayMinutes(minutes);
       setScrollLimit(limit);
-      setHealth(hp);
-
       setStreak(calculateStreak(history, limit));
 
-      const last7 = getLast7Days();
-      const weekValues = last7.map((d) => ({
+      // ── Weekly intensity data (current Mon → Sun only) ─────────
+      // Resets at the start of each week. Previous week does not roll over.
+      const thisWeek = getCurrentWeekMonSun();
+      const orderedWeek = thisWeek.map((d) => ({
         day: d.label,
         value: history[d.key] ?? 0,
       }));
 
-      const monFirstOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const orderedWeek = monFirstOrder.map((label) => {
-        const found = weekValues.find((d) => d.day === label);
-        return found ?? { day: label, value: 0 };
-      });
-
       setWeeklyData(orderedWeek);
       setWeeklyTotal(orderedWeek.reduce((sum, d) => sum + d.value, 0));
 
+      // ── Monthly activity calendar (UTC) ─────────────────────────
+      // Pad leading cells so day 1 lands on the correct weekday column.
+      // DAYS header is Sun→Sat, matching Date#getUTCDay() (0=Sun).
       const now = new Date();
       const utcYear = now.getUTCFullYear();
-      const utcMonth = now.getUTCMonth(); // 0-based
+      const utcMonth = now.getUTCMonth();
       const daysInMonth = new Date(Date.UTC(utcYear, utcMonth + 1, 0)).getUTCDate();
+      const firstDow = new Date(Date.UTC(utcYear, utcMonth, 1)).getUTCDay(); // 0=Sun
 
-      const monthActivity: number[] = [];
-      for (let day = 1; day <= 31; day++) {
-        if (day > daysInMonth) {
-          monthActivity.push(0);
-          continue;
-        }
-
+      const monthActivity: { day: number | null; level: number }[] = [];
+      for (let i = 0; i < firstDow; i++) {
+        monthActivity.push({ day: null, level: 0 });
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
         const key = `${utcYear}-${String(utcMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayMinutes = history[key] ?? 0;
-        monthActivity.push(getIntensityLevel(dayMinutes, limit));
+        monthActivity.push({
+          day,
+          level: getIntensityLevel(dayMinutes, limit),
+        });
       }
       setActivity(monthActivity);
     } catch (err) {
@@ -219,10 +310,67 @@ export default function StatsScreen() {
     }, [loadStats])
   );
 
-  const maxBar = Math.max(45, ...weeklyData.map((d) => d.value), 1);
-  const isHealthyWeek = todayMinutes <= scrollLimit;
+  const handleLogout = () => {
+    setMenuOpen(false);
+    setProfileOpen(false);
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+            router.replace('/(auth)/login');
+          } catch (error: any) {
+            Alert.alert('Error', error.message || 'Could not log out');
+          }
+        },
+      },
+    ]);
+  };
 
-  // Exact same calendar width as before (portrait card width)
+  const HeaderMenu = () => (
+    <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+      <Pressable style={menuStyles.overlay} onPress={() => setMenuOpen(false)}>
+        <View style={[menuStyles.card, { right: isLandscape ? 24 : 18 }]}>
+          <Pressable
+            style={menuStyles.item}
+            onPress={() => {
+              setMenuOpen(false);
+              setProfileOpen(true);
+            }}
+          >
+            <Text style={menuStyles.itemText}>Profile</Text>
+          </Pressable>
+
+          <View style={menuStyles.divider} />
+
+          <Pressable
+            style={menuStyles.item}
+            onPress={() => {
+              setMenuOpen(false);
+              setSettingsOpen(true);
+            }}
+          >
+            <Text style={menuStyles.itemText}>Settings</Text>
+          </Pressable>
+
+          <View style={menuStyles.divider} />
+
+          <Pressable style={menuStyles.item} onPress={handleLogout}>
+            <Text style={menuStyles.itemTextDanger}>Log out</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+
+  // Visual scale: at least the daily limit, never let one extreme day
+  // make every other bar a tiny stub. Cap scale at 3× limit.
+  const rawMax = Math.max(...weeklyData.map((d) => d.value), 1);
+  const maxBar = Math.max(scrollLimit, Math.min(rawMax, scrollLimit * 3));
+
   const portraitCalendarWidth = Math.min(width, height) - 36;
   const cardsColumnWidth = 300;
 
@@ -232,6 +380,13 @@ export default function StatsScreen() {
     { label: 'TOP ENEMY', value: topEnemy, icon: 'phone-portrait-outline' },
     { label: 'STREAK', value: `${streak}D`, icon: 'flash-outline' },
   ];
+
+  /** Pixel height for a bar — clamped so it never leaves the chart box. */
+  function barPixelHeight(value: number, chartH: number): number {
+    if (value <= 0) return 6;
+    const h = (value / maxBar) * chartH;
+    return Math.max(6, Math.min(chartH, h));
+  }
 
   if (loading) {
     return (
@@ -247,8 +402,17 @@ export default function StatsScreen() {
   if (isLandscape) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <HeaderMenu />
+        <ProfileModal
+          visible={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          onLogout={handleLogout}
+        />
+        <SettingsModal
+          visible={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
         <View style={{ flex: 1, backgroundColor: '#FFF9F5' }}>
-          {/* Centered pair — outer sides get the empty space, nothing touches screen edges */}
           <View
             style={{
               flex: 1,
@@ -259,7 +423,7 @@ export default function StatsScreen() {
               gap: 70,
             }}
           >
-            {/* LEFT — calendar (unchanged size) */}
+            {/* LEFT — calendar + intensity */}
             <ScrollView
               style={{ width: portraitCalendarWidth, flexGrow: 0, flexShrink: 0 }}
               contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
@@ -285,26 +449,30 @@ export default function StatsScreen() {
                 </View>
 
                 <View style={styles.calendarGrid}>
-                  {activity.map((level, i) => (
+                  {activity.map((cell, i) => (
                     <View key={i} style={styles.calendarCell}>
-                      <View
-                        style={[
-                          styles.calendarCellInner,
-                          {
-                            backgroundColor: INTENSITY_COLORS[level],
-                            borderColor: level === 0 ? '#f0e6e0' : 'transparent',
-                          },
-                        ]}
-                      >
-                        <Text
+                      {cell.day === null ? (
+                        <View style={[styles.calendarCellInner, { backgroundColor: 'transparent', borderColor: 'transparent' }]} />
+                      ) : (
+                        <View
                           style={[
-                            styles.calendarDayText,
-                            { color: level >= 3 ? '#fff' : '#1a1a1a' },
+                            styles.calendarCellInner,
+                            {
+                              backgroundColor: INTENSITY_COLORS[cell.level],
+                              borderColor: cell.level === 0 ? '#f0e6e0' : 'transparent',
+                            },
                           ]}
                         >
-                          {i + 1}
-                        </Text>
-                      </View>
+                          <Text
+                            style={[
+                              styles.calendarDayText,
+                              { color: cell.level >= 3 ? '#fff' : '#1a1a1a' },
+                            ]}
+                          >
+                            {cell.day}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -325,23 +493,24 @@ export default function StatsScreen() {
                     <Ionicons name="pulse-outline" size={16} color="#1a1a1a" />
                     <Text style={styles.landscapeCardTitle}>INTENSITY GRAPH</Text>
                   </View>
-                  <View style={styles.healthyPill}>
-                    <Text style={styles.healthyPillText}>
-                      {isHealthyWeek ? 'HEALTHY DAY' : 'OVER LIMIT'}
-                    </Text>
-                  </View>
+                  {/* OVER LIMIT / HEALTHY DAY pill removed */}
                 </View>
 
                 <Text style={styles.intensitySub}>Minutes spent in distraction apps</Text>
 
-                <View style={styles.barChart}>
+                <View
+                  style={[
+                    styles.barChart,
+                    { height: LANDSCAPE_CHART_H, overflow: 'hidden' },
+                  ]}
+                >
                   {weeklyData.map((d) => (
                     <View key={d.day} style={styles.barCol}>
                       <View
                         style={[
                           styles.barFill,
                           {
-                            height: `${(d.value / maxBar) * 100}%`,
+                            height: barPixelHeight(d.value, LANDSCAPE_CHART_H),
                             backgroundColor: d.value > scrollLimit ? '#C94C4C' : '#A8A29E',
                           },
                         ]}
@@ -370,7 +539,13 @@ export default function StatsScreen() {
             <View style={{ width: cardsColumnWidth, flexGrow: 0, flexShrink: 0, gap: 12 }}>
               <View style={styles.landscapeHeader}>
                 <Text style={styles.landscapeHeaderTitle}>LOGS & STATS</Text>
-                <Ionicons name="notifications-outline" size={20} color="#1a1a1a" />
+                <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
+                  <Image
+                    source={SETTINGS_ICON}
+                    style={{ width: 20, height: 20 }}
+                    contentFit="contain"
+                  />
+                </Pressable>
               </View>
 
               <View style={styles.landscapeStatsGrid}>
@@ -394,11 +569,27 @@ export default function StatsScreen() {
   // ==================== PORTRAIT ====================
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <HeaderMenu />
+      <ProfileModal
+        visible={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onLogout={handleLogout}
+      />
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
       <View style={{ flex: 1, backgroundColor: '#FFF9F5' }}>
         <ScrollView contentContainerStyle={styles.portraitScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.portraitHeader}>
             <Text style={styles.portraitHeaderTitle}>LOGS & STATS</Text>
-            <Ionicons name="notifications-outline" size={22} color="#1a1a1a" />
+            <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
+              <Image
+                source={SETTINGS_ICON}
+                style={{ width: 22, height: 22 }}
+                contentFit="contain"
+              />
+            </Pressable>
           </View>
 
           <View style={styles.portraitCard}>
@@ -421,26 +612,35 @@ export default function StatsScreen() {
             </View>
 
             <View style={styles.calendarGrid}>
-              {activity.map((level, i) => (
+              {activity.map((cell, i) => (
                 <View key={i} style={styles.portraitCalendarCell}>
-                  <View
-                    style={[
-                      styles.portraitCalendarCellInner,
-                      {
-                        backgroundColor: INTENSITY_COLORS[level],
-                        borderColor: level === 0 ? '#f0e6e0' : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Text
+                  {cell.day === null ? (
+                    <View
                       style={[
-                        styles.portraitCalendarDayText,
-                        { color: level >= 3 ? '#fff' : '#1a1a1a' },
+                        styles.portraitCalendarCellInner,
+                        { backgroundColor: 'transparent', borderColor: 'transparent' },
+                      ]}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.portraitCalendarCellInner,
+                        {
+                          backgroundColor: INTENSITY_COLORS[cell.level],
+                          borderColor: cell.level === 0 ? '#f0e6e0' : 'transparent',
+                        },
                       ]}
                     >
-                      {i + 1}
-                    </Text>
-                  </View>
+                      <Text
+                        style={[
+                          styles.portraitCalendarDayText,
+                          { color: cell.level >= 3 ? '#fff' : '#1a1a1a' },
+                        ]}
+                      >
+                        {cell.day}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -475,23 +675,24 @@ export default function StatsScreen() {
                 <Ionicons name="pulse-outline" size={17} color="#1a1a1a" />
                 <Text style={styles.portraitCardTitle}>INTENSITY GRAPH</Text>
               </View>
-              <View style={styles.portraitHealthyPill}>
-                <Text style={styles.portraitHealthyPillText}>
-                  {isHealthyWeek ? 'HEALTHY DAY' : 'OVER LIMIT'}
-                </Text>
-              </View>
+              {/* OVER LIMIT / HEALTHY DAY pill removed */}
             </View>
 
             <Text style={styles.portraitIntensitySub}>Minutes spent in distraction apps</Text>
 
-            <View style={styles.portraitBarChart}>
+            <View
+              style={[
+                styles.portraitBarChart,
+                { height: PORTRAIT_CHART_H, overflow: 'hidden' },
+              ]}
+            >
               {weeklyData.map((d) => (
                 <View key={d.day} style={styles.barCol}>
                   <View
                     style={[
                       styles.portraitBarFill,
                       {
-                        height: `${(d.value / maxBar) * 100}%`,
+                        height: barPixelHeight(d.value, PORTRAIT_CHART_H),
                         backgroundColor: d.value > scrollLimit ? '#C94C4C' : '#A8A29E',
                       },
                     ]}
@@ -519,3 +720,43 @@ export default function StatsScreen() {
     </SafeAreaView>
   );
 }
+
+const menuStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  card: {
+    position: 'absolute',
+    top: 56,
+    backgroundColor: '#FFF9F5',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#f0e6e0',
+    minWidth: 160,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  item: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  itemText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  itemTextDanger: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#B83F3F',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f0e6e0',
+  },
+});

@@ -1,6 +1,6 @@
 import {
     getMinutesInRange,
-    REELS_PACKAGES,
+    resolveReelsPackages,
     SOCIAL_PACKAGES,
 } from '@/services/usage';
 
@@ -154,7 +154,8 @@ async function isHealthyFinishedDay(
   day: Date,
   scrollLimit: number,
   createdAt: string,
-  now: Date
+  now: Date,
+  packages: string[]
 ): Promise<boolean> {
   const dayStart = startOfUTCDay(day);
   const dayEnd = endOfUTCDay(day);
@@ -172,7 +173,7 @@ async function isHealthyFinishedDay(
   const minutes = await getMinutesInRange(
     dayStart.getTime(),
     dayEnd.getTime(),
-    SOCIAL_PACKAGES
+    packages
   );
   return minutes <= scrollLimit;
 }
@@ -181,12 +182,19 @@ async function hasConsecutiveHealthyDays(
   count: number,
   scrollLimit: number,
   createdAt: string,
-  now: Date
+  now: Date,
+  packages: string[]
 ): Promise<boolean> {
   // Ending at yesterday (last finished UTC day)
   for (let i = 1; i <= count; i++) {
     const day = addUTCDays(startOfUTCDay(now), -i);
-    const ok = await isHealthyFinishedDay(day, scrollLimit, createdAt, now);
+    const ok = await isHealthyFinishedDay(
+      day,
+      scrollLimit,
+      createdAt,
+      now,
+      packages
+    );
     if (!ok) return false;
   }
   return true;
@@ -210,10 +218,15 @@ function lastFinishedWeekend(now: Date): { sat: Date; sun: Date } | null {
 
 async function checkNoReelsNight(
   now: Date,
-  createdAt: string
+  createdAt: string,
+  trackedPackages: string[]
 ): Promise<boolean> {
   // Only after 07:00 UTC so the window is complete
   if (now.getUTCHours() < 7) return false;
+
+  const reels = resolveReelsPackages(trackedPackages);
+  // If user disabled Instagram + TikTok, night is automatically clean
+  if (reels.length === 0) return true;
 
   const todayStart = startOfUTCDay(now);
   const petCreated = startOfUTCDay(new Date(createdAt));
@@ -233,14 +246,15 @@ async function checkNoReelsNight(
   const minutes = await getMinutesInRange(
     windowStart.getTime(),
     windowEnd.getTime(),
-    REELS_PACKAGES
+    reels
   );
   return minutes === 0;
 }
 
 async function checkMorningMute(
   now: Date,
-  createdAt: string
+  createdAt: string,
+  packages: string[]
 ): Promise<boolean> {
   // Evaluate yesterday's morning (always a finished window)
   const yesterday = addUTCDays(startOfUTCDay(now), -1);
@@ -258,7 +272,7 @@ async function checkMorningMute(
   const minutes = await getMinutesInRange(
     windowStart.getTime(),
     windowEnd.getTime(),
-    SOCIAL_PACKAGES
+    packages
   );
   return minutes === 0;
 }
@@ -270,29 +284,60 @@ async function canComplete(
     createdAt: string;
     health: number;
     now: Date;
+    packages: string[];
   }
 ): Promise<boolean> {
-  const { scrollLimit, createdAt, health, now } = ctx;
+  const { scrollLimit, createdAt, health, now, packages } = ctx;
 
   switch (id) {
     case '1': {
       const yesterday = addUTCDays(startOfUTCDay(now), -1);
-      return isHealthyFinishedDay(yesterday, scrollLimit, createdAt, now);
+      return isHealthyFinishedDay(
+        yesterday,
+        scrollLimit,
+        createdAt,
+        now,
+        packages
+      );
     }
     case '2':
-      return checkNoReelsNight(now, createdAt);
+      return checkNoReelsNight(now, createdAt, packages);
     case '3':
-      return hasConsecutiveHealthyDays(2, scrollLimit, createdAt, now);
+      return hasConsecutiveHealthyDays(
+        2,
+        scrollLimit,
+        createdAt,
+        now,
+        packages
+      );
     case '4': {
       const yesterday = addUTCDays(startOfUTCDay(now), -1);
-      return isHealthyFinishedDay(yesterday, scrollLimit * 0.5, createdAt, now);
+      return isHealthyFinishedDay(
+        yesterday,
+        scrollLimit * 0.5,
+        createdAt,
+        now,
+        packages
+      );
     }
     case '5':
-      return hasConsecutiveHealthyDays(3, scrollLimit, createdAt, now);
+      return hasConsecutiveHealthyDays(
+        3,
+        scrollLimit,
+        createdAt,
+        now,
+        packages
+      );
     case '6':
-      return checkMorningMute(now, createdAt);
+      return checkMorningMute(now, createdAt, packages);
     case '7':
-      return hasConsecutiveHealthyDays(5, scrollLimit, createdAt, now);
+      return hasConsecutiveHealthyDays(
+        5,
+        scrollLimit,
+        createdAt,
+        now,
+        packages
+      );
     case '8': {
       const weekend = lastFinishedWeekend(now);
       if (!weekend) return false;
@@ -300,18 +345,26 @@ async function canComplete(
         weekend.sat,
         scrollLimit,
         createdAt,
-        now
+        now,
+        packages
       );
       const sunOk = await isHealthyFinishedDay(
         weekend.sun,
         scrollLimit,
         createdAt,
-        now
+        now,
+        packages
       );
       return satOk && sunOk;
     }
     case '9':
-      return hasConsecutiveHealthyDays(7, scrollLimit, createdAt, now);
+      return hasConsecutiveHealthyDays(
+        7,
+        scrollLimit,
+        createdAt,
+        now,
+        packages
+      );
     case '10':
       return health > 0 && daysAliveUTC(createdAt, now) >= 14;
     default:
@@ -331,8 +384,11 @@ export async function evaluateChallenges(input: {
   createdAt: string;
   health: number;
   now?: Date;
+  /** User's tracked packages from Settings. Defaults to all social apps. */
+  packages?: string[];
 }): Promise<ChallengeState> {
   const now = input.now ?? new Date();
+  const packages = input.packages ?? SOCIAL_PACKAGES;
   const completed = new Set(input.existing?.completedIds ?? []);
 
   for (const def of CHALLENGE_DEFS) {
@@ -349,6 +405,7 @@ export async function evaluateChallenges(input: {
       createdAt: input.createdAt,
       health: input.health,
       now,
+      packages,
     });
 
     if (ok) {

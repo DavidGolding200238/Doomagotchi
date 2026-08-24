@@ -16,6 +16,7 @@ import {
     getPetScrollMinutes,
     getUTCDateKey,
     hasUsagePermission,
+    resolveTrackedPackages,
 } from '@/services/usage';
 
 export const BACKGROUND_HEALTH_TASK = 'doomagotchi-health-tick';
@@ -147,6 +148,9 @@ TaskManager.defineTask(BACKGROUND_HEALTH_TASK, async () => {
 
     const raw = userDoc.data().pet as PetData;
     const petName = raw.name || 'Your pet';
+    const trackedPackages = resolveTrackedPackages(
+      userDoc.data()?.trackedAppIds ?? null
+    );
 
     if ((raw.health ?? 100) <= 0) {
       if (raw.lastNotifiedBand !== 'dead') {
@@ -163,7 +167,8 @@ TaskManager.defineTask(BACKGROUND_HEALTH_TASK, async () => {
     const result = await getPetScrollMinutes(
       raw.usageBaselineMinutes ?? 0,
       raw.usageBaselineDate ?? '',
-      raw.createdAt
+      raw.createdAt,
+      trackedPackages
     );
 
     const prev: PetHealthState = {

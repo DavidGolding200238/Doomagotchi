@@ -16,10 +16,12 @@ import {
 import { db } from '@/services/firebase';
 import { applyHealthTick, type PetHealthState } from '@/services/health';
 import {
+  getMinutesInRange,
   getPetScrollMinutes,
   getUTCDateKey,
   hasUsagePermission,
   requestUsagePermission,
+  resolveTrackedPackages,
 } from '@/services/usage';
 import { styles } from '@/styles/home.styles';
 import { Ionicons } from '@expo/vector-icons';
@@ -83,6 +85,7 @@ const BADGE_DEEP_SLEEPER = require('@/assets/Badges/Deep Sleeper.png');
 const BADGE_BOOK_WORM = require('@/assets/Badges/Book Worm.png');
 
 const LOCK_ICON = require('@/assets/images/Lock icon.png');
+const SETTINGS_ICON = require('@/assets/images/Settings Icon.png');
 
 const CHALLENGE_ICONS: Record<string, any> = {
   '1': ICON_FIRST_LIGHT,
@@ -470,8 +473,17 @@ export default function HomeScreen() {
       const raw = userDoc.data().pet as PetData;
       setPet(raw);
 
+      // Settings toggles → only these packages count toward limit / health
+      const trackedPackages = resolveTrackedPackages(
+        userDoc.data()?.trackedAppIds ?? null
+      );
+
       const granted = await hasUsagePermission();
       setHasUsagePermissionState(granted);
+
+      const todayKey = getUTCDateKey();
+      const createdDate = raw.createdAt ? raw.createdAt.slice(0, 10) : null;
+      const isCreationDay = createdDate === todayKey;
 
       let minutes = 0;
       let baselineMinutes = raw.usageBaselineMinutes ?? 0;
@@ -481,22 +493,43 @@ export default function HomeScreen() {
         const result = await getPetScrollMinutes(
           baselineMinutes,
           baselineDate,
-          raw.createdAt
+          raw.createdAt,
+          trackedPackages
         );
         minutes = result.minutes;
         baselineMinutes = result.newBaseline;
         baselineDate = result.newBaselineDate;
+
+        // ─────────────────────────────────────────────────────────
+        // HARD GUARD: brand-new pets must never inherit the day's
+        // pre-existing social usage. If baseline is missing or not
+        // locked to today, force 0 minutes and lock the baseline.
+        // This stops the "500m from nowhere → instant death" bug.
+        // ─────────────────────────────────────────────────────────
+        if (isCreationDay) {
+          if (!raw.usageBaselineDate || raw.usageBaselineDate !== todayKey) {
+            minutes = 0;
+            // baselineMinutes / baselineDate already set to raw by getPetScrollMinutes
+          }
+        }
       } else {
         minutes = raw.totalScrollToday ?? 0;
       }
+
+      // Extra safety: on creation day never let totalScrollToday start
+      // from a non-zero value that could cause a huge overage delta.
+      const safePrevTotal =
+        isCreationDay && (!raw.usageBaselineDate || raw.usageBaselineDate !== todayKey)
+          ? 0
+          : (raw.totalScrollToday ?? 0);
 
       const prev: PetHealthState = {
         health: raw.health ?? 100,
         happiness: raw.happiness ?? 100,
         scrollLimit: raw.scrollLimit ?? 45,
-        totalScrollToday: raw.totalScrollToday ?? 0,
+        totalScrollToday: safePrevTotal,
         lastHealthUpdate: raw.lastHealthUpdate ?? new Date().toISOString(),
-        lastScrollDate: raw.lastScrollDate ?? getUTCDateKey(),
+        lastScrollDate: raw.lastScrollDate ?? todayKey,
       };
 
       const next = applyHealthTick(prev, minutes);
@@ -516,15 +549,32 @@ export default function HomeScreen() {
         lastNotifiedHealth: raw.lastNotifiedHealth,
       });
 
+      // ─────────────────────────────────────────────────────────
+      // CHALLENGE INHERITANCE FIX
+      // First Light needs a FULL finished day AFTER creation.
+      // No challenge can legitimately complete while daysAlive < 2.
+      // Force empty state so a brand-new pet never shows First Light
+      // (or any challenge) as already done.
+      // ─────────────────────────────────────────────────────────
       let challengeState = raw.challenges ?? emptyChallengeState();
 
-      if (granted) {
+      const createdStart = new Date(raw.createdAt);
+      createdStart.setUTCHours(0, 0, 0, 0);
+      const nowStart = new Date();
+      nowStart.setUTCHours(0, 0, 0, 0);
+      const daysAlive =
+        Math.floor((nowStart.getTime() - createdStart.getTime()) / 86_400_000) + 1;
+
+      if (daysAlive < 2) {
+        challengeState = emptyChallengeState();
+      } else if (granted) {
         try {
           challengeState = await evaluateChallenges({
             existing: challengeState,
             scrollLimit: next.scrollLimit,
             createdAt: raw.createdAt,
             health: next.health,
+            packages: trackedPackages,
           });
         } catch (e) {
           console.log('Challenge evaluate error:', e);
@@ -533,14 +583,38 @@ export default function HomeScreen() {
 
       setChallengeViews(buildChallengeViews(challengeState));
 
-      const todayKey = getUTCDateKey();
       const existingHistory: Record<string, number> =
         userDoc.data()?.usageHistory ?? {};
 
-      let updatedHistory: Record<string, number> = {
-        ...existingHistory,
-        [todayKey]: minutes,
-      };
+      // Backfill last 14 UTC days from UsageStats so graph days are not
+      // empty when the app was never opened that day (e.g. Saturday).
+      let updatedHistory: Record<string, number> = { ...existingHistory };
+      if (granted) {
+        const nowMs = Date.now();
+        for (let i = 0; i < 14; i++) {
+          const day = new Date();
+          day.setUTCHours(12, 0, 0, 0);
+          day.setUTCDate(day.getUTCDate() - i);
+          const key = getUTCDateKey(day);
+          const start = new Date(day);
+          start.setUTCHours(0, 0, 0, 0);
+          const end = new Date(day);
+          end.setUTCHours(23, 59, 59, 999);
+          const endMs = Math.min(end.getTime(), nowMs);
+          if (endMs <= start.getTime()) continue;
+          try {
+            updatedHistory[key] = await getMinutesInRange(
+              start.getTime(),
+              endMs,
+              trackedPackages
+            );
+          } catch {
+            // keep existing
+          }
+        }
+      } else {
+        updatedHistory[todayKey] = minutes;
+      }
 
       const sortedKeys = Object.keys(updatedHistory).sort();
       if (sortedKeys.length > 90) {
@@ -778,7 +852,11 @@ export default function HomeScreen() {
           <View style={styles.landscapePetCard}>
             <View style={styles.landscapeHeaderRow}>
               <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
-                <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
+                <Image
+                  source={SETTINGS_ICON}
+                  style={{ width: 22, height: 22 }}
+                  contentFit="contain"
+                />
               </Pressable>
             </View>
 
@@ -880,7 +958,11 @@ export default function HomeScreen() {
         <View style={styles.portraitHero}>
           <View style={styles.portraitHeaderRow}>
             <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
-              <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
+              <Image
+                source={SETTINGS_ICON}
+                style={{ width: 22, height: 22 }}
+                contentFit="contain"
+              />
             </Pressable>
           </View>
 
