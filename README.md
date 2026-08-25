@@ -231,16 +231,14 @@ assets/images holds the logo, lock icon, app icon and splash.
 
 ### Mockups
 
-Place device screenshots of the live UI in a `docs/mockups/` folder and reference them below so reviewers can see the screens without installing the APK.
-
 | Screen | Screenshot |
 |--------|------------|
-| Pet Selection | ![Pet Selection](docs/mockups/pet-selection.png) |
-| Home (healthy) | ![Home healthy](docs/mockups/home-healthy.png) |
-| Home (dead) | ![Home dead](docs/mockups/home-dead.png) |
-| Stats | ![Stats](docs/mockups/stats.png) |
-| Graveyard | ![Graveyard](docs/mockups/graveyard.png) |
-| Settings | ![Settings](docs/mockups/settings.png) |
+| Login | ![Login](Mock%20ups/Login%20Page%201.png) |
+| Main Page | ![Main Page](Mock%20ups/Main%20Page.png) |
+| Stats | ![Stats](Mock%20ups/Stats%20Page.png) |
+| Settings | ![Settings](Mock%20ups/Setting%20Page.png) |
+| Cemetery | ![Cemetery](Mock%20ups/Cemetry.png) |
+| Gravestone | ![Gravestone](Mock%20ups/Gravestone.png) |
 
 ### Demo videos
 
@@ -250,13 +248,13 @@ Natural student walkthroughs recorded on a real Android device with live usage t
 
 Pet selection → naming → home → settings → challenges → stats → empty graveyard → landscape.
 
-<video src="docs/demos/part1-new-account.mp4" controls width="360"></video>
+<video src="Demo%20Videos/Demo%20Part%201.mp4" controls width="360"></video>
 
 #### Part 2 – Death & Graveyard
 
 Dead pet → Lay to rest → drag to bury → write epitaph → Graveyard with history → choose new pet.
 
-<video src="docs/demos/part2-death-and-graveyard.mp4" controls width="360"></video>
+<video src="Demo%20Videos/Demo%20Part%202.mp4" controls width="360"></video>
 
 ---
 
@@ -327,6 +325,4 @@ Older branch: master (outdated)
 The recommended way to evaluate the app is to install the EAS built APK on an Android device and grant Usage Access. Expo Go is not supported.
 
 The full loop is implemented: select a pet, track real scroll time, watch health change, complete challenges, unlock badges, and move a dead pet to the Graveyard.
-
-
 ```
