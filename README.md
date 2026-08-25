@@ -244,17 +244,13 @@ assets/images holds the logo, lock icon, app icon and splash.
 
 Natural student walkthroughs recorded on a real Android device with live usage tracking.
 
-#### Part 1 – New account (full flow)
+**Part 1 – New account (full flow)**  
+Pet selection → naming → home → settings → challenges → stats → empty graveyard → landscape.  
+[Watch / Download Demo Part 1](Demo%20Videos/Demo%20Part%201.mp4)
 
-Pet selection → naming → home → settings → challenges → stats → empty graveyard → landscape.
-
-<video src="Demo%20Videos/Demo%20Part%201.mp4" controls width="360"></video>
-
-#### Part 2 – Death & Graveyard
-
-Dead pet → Lay to rest → drag to bury → write epitaph → Graveyard with history → choose new pet.
-
-<video src="Demo%20Videos/Demo%20Part%202.mp4" controls width="360"></video>
+**Part 2 – Death & Graveyard**  
+Dead pet → Lay to rest → drag to bury → write epitaph → Graveyard with history → choose new pet.  
+[Watch / Download Demo Part 2](Demo%20Videos/Demo%20Part%202.mp4)
 
 ---
 
