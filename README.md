@@ -244,13 +244,13 @@ assets/images holds the logo, lock icon, app icon and splash.
 
 Natural student walkthroughs recorded on a real Android device with live usage tracking.
 
-**Part 1 – New account (full flow)**  
+**Part 1 – New account (full flow)**
 
-[Watch / Download Demo Part 1](Demo%20Videos/Demo%20Part%201.mp4)
+[Watch Demo Part 1](https://drive.google.com/file/d/1ac3nn5VMEs-Nq_Fm4N5YMa-LbmfO3Q2v/view?usp=sharing)
 
-**Part 2 – Death & Graveyard**  
+**Part 2 – Death & Graveyard**
 
-[Watch / Download Demo Part 2](Demo%20Videos/Demo%20Part%202.mp4)
+[Watch Demo Part 2](https://drive.google.com/file/d/1-C-FFKQWCbGM2fZOl8J7FnN5B9aeb2b0/view?usp=sharing)
 
 ---
 
