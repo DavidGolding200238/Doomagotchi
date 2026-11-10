@@ -27,7 +27,7 @@ const GOOGLE_WEB_CLIENT_ID =
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, signInWithGoogleIdToken } = useAuth();
+  const { signIn, signInWithGoogleIdToken, resetPassword } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -80,6 +80,30 @@ export default function LoginScreen() {
       Alert.alert('Login failed', error.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgot = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      Alert.alert('Enter your email', 'Type your email in the email field above, then tap Forgot? again.');
+      return;
+    }
+
+    try {
+      await resetPassword(trimmed);
+      Alert.alert(
+        'Check your email',
+        `If an account exists for ${trimmed}, a password reset link is on its way. Check your spam folder too.`
+      );
+    } catch (error: any) {
+      if (error?.code === 'auth/invalid-email') {
+        Alert.alert('Invalid email', 'That email address doesn’t look right.');
+      } else if (error?.code === 'auth/too-many-requests') {
+        Alert.alert('Slow down', 'Too many attempts. Try again in a few minutes.');
+      } else {
+        Alert.alert('Reset failed', error?.message || 'Something went wrong');
+      }
     }
   };
 
@@ -148,7 +172,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable style={styles.forgotBtn}>
+          <Pressable style={styles.forgotBtn} onPress={handleForgot}>
             <Text style={styles.forgotText}>Forgot?</Text>
           </Pressable>
 
